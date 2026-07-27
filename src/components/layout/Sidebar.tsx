@@ -8,6 +8,7 @@ import {
   Target,
   Plane,
   Users,
+  CalendarClock,
   Settings,
   UserCheck,
   ChevronLeft,
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { name: 'Goals', path: '/goals', icon: Target },
   { name: 'Trips', path: '/trips', icon: Plane, badge: 'New' },
   { name: 'Shared Expenses', path: '/shared-expenses', icon: Users },
+  { name: 'Subscriptions', path: '/subscriptions', icon: CalendarClock, badge: '5' },
   { name: 'Settings', path: '/settings', icon: Settings },
 ];
 

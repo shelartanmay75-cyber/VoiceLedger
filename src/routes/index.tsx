@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ProtectedRoute } from '../components/layout/ProtectedRoute';
 import { LoginPage } from '../pages/LoginPage';
@@ -8,6 +8,7 @@ import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { GoalsPage } from '../pages/GoalsPage';
 import { TripsPage } from '../pages/TripsPage';
 import { SharedExpensesPage } from '../pages/SharedExpensesPage';
+import { SubscriptionsPage } from '../pages/SubscriptionsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { ProfilePage } from '../pages/ProfilePage';
 
@@ -49,16 +50,16 @@ export const router = createBrowserRouter([
         element: <SharedExpensesPage />,
       },
       {
+        path: 'subscriptions',
+        element: <SubscriptionsPage />,
+      },
+      {
         path: 'settings',
         element: <SettingsPage />,
       },
       {
         path: 'profile',
         element: <ProfilePage />,
-      },
-      {
-        path: '*',
-        element: <Navigate to="/" replace />,
       },
     ],
   },
