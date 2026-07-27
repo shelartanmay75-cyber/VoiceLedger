@@ -1,163 +1,32 @@
-# 🎙️ VoiceLedger
+# React + TypeScript + Vite
 
-> **Talk. Track. Understand.**
->
-> VoiceLedger is an AI-powered, voice-first expense tracking application that lets users record expenses naturally through speech, automatically categorizes transactions, provides intelligent financial insights, and simplifies personal finance management with conversational AI.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
----
+Currently, two official plugins are available:
 
-## 📖 Overview
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-Traditional expense trackers require users to manually enter every detail of a transaction, making the process slow and repetitive.
+## React Compiler
 
-**VoiceLedger** eliminates this friction by allowing users to simply speak naturally.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-Example:
+## Expanding the Oxlint configuration
 
-> "I spent ₹250 on coffee this morning."
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
 
-VoiceLedger automatically extracts:
-
-* 💰 Amount
-* 🛒 Expense Title
-* 🏷️ Category
-* 📅 Date & Time
-* 💳 Payment Method (when mentioned)
-* 📝 Additional Notes
-
-The user can review and edit the extracted information before saving.
-
----
-
-# ✨ Features
-
-### 🎤 Voice-First Expense Tracking
-
-* Natural language expense entry
-* Speech-to-text conversion
-* AI-powered expense extraction
-* Multi-expense conversation support
-
----
-
-### 🧠 Smart Categorization
-
-Automatically categorizes expenses.
-
-Example:
-
-| User Says    | Suggested Category    |
-| ------------ | --------------------- |
-| Coffee       | Food & Beverages      |
-| Petrol       | Transportation        |
-| Netflix      | Bills & Subscriptions |
-| Doctor Visit | Healthcare            |
-
-Users can change the category anytime using a dropdown.
-
----
-
-### 🔍 Natural Language Search
-
-Search expenses naturally.
-
-Examples
-
-* Show coffee expenses
-* Expenses from last week
-* Petrol expenses
-* Expenses above ₹1000
-* Expenses with Rahul
-
----
-
-
-# 🛠️ Tech Stack
-
-```text
-                         VoiceLedger Tech Stack
-
-                        +----------------------+
-                        |      Frontend        |
-                        |----------------------|
-                        | • React             |
-                        | • TypeScript        |
-                        | • Vite              |
-                        | • Tailwind CSS      |
-                        | • Framer Motion     |
-                        | • React Router      |
-                        +----------+----------+
-                                   |
-                                   |
-                +------------------+------------------+
-                |                                     |
-                v                                     v
-      +----------------------+             +----------------------+
-      |      Backend         |             |      Database        |
-      |----------------------|             |----------------------|
-      | • Node.js            |             | • Firebase Firestore |
-      | • Express.js         |             +----------------------+
-      | • REST API           |
-      +----------+-----------+
-                 |
-                 |
-     +-----------+------------+---------------------------+
-     |                        |                           |
-     v                        v                           v
-+----------------*   +------------------+       +-------------------+
-| Authentication |   | AI & Voice       |       | Data Visualization|
-|----------------|   |------------------|       |-------------------|
-| Firebase Auth  |   |  Gemini          |       |      Recharts     |    
-| Google Sign-In |   | Speech-to-Text   |       | Charts & Graphs   |
-| Guest Mode     |   | NLP              |       +-------------------+
-+-------------+--+   | Entity Extraction|
-              |      +------------------+
-              |
-              v
-      +----------------------+
-      |      Deployment      |
-      |----------------------|
-      | • Vercel             |
-      | • Render             |
-      +----------------------+
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
 ```
 
-# 🧱 Project Architecture
-
-```
-                     +----------------------+
-                     |      Frontend        |
-                     |  React + TypeScript  |
-                     +----------+-----------+
-                                |
-                                |
-                                v
-                     REST API / HTTPS
-                                |
-                                v
-                   +----------------------+
-                   |      Express API     |
-                   +----------+-----------+
-                              |
-        +---------------------+--------------------+
-        |                     |                    |
-        v                     v                    v
-Firebase Auth        Firestore Database      AI Service
-(Google Login)       Expenses & Users     OpenAI / Gemini
-        |                                        |
-        +------------------+---------------------+
-                           |
-                           v
-                Speech-to-Text Processing
-                           |
-                           v
-              Expense Extraction Engine
-                           |
-                           v
-                Categorization & Insights
-```
-
----
-
-
-
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
