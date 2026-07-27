@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   signInWithPopup,
+  signOut,
   onAuthStateChanged,
   type User as FirebaseUser,
 } from 'firebase/auth';
@@ -19,6 +20,7 @@ export interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInAsGuest: () => void;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,6 +117,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   };
 
+  const logout = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      if (isGuest) {
+        setIsGuest(false);
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+        setUser(null);
+      } else if (isFirebaseConfigured && auth) {
+        await signOut(auth);
+        setUser(null);
+      } else {
+        setUser(null);
+        setIsGuest(false);
+        localStorage.removeItem(GUEST_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -123,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         signInWithGoogle,
         signInAsGuest,
+        logout,
       }}
     >
       {children}

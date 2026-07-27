@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Mic,
   Search,
@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import { ProfileDropdown } from './ProfileDropdown';
 
 export interface NavbarProps {
   onToggleMobileSidebar: () => void;
@@ -29,7 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { user, isGuest } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [hasUnreadNotifications] = React.useState(true);
+  const [hasUnreadNotifications] = useState(true);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   const getUserInitials = (name: string | null): string => {
     if (!name) return 'U';
@@ -150,50 +152,59 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Vertical Divider */}
         <div className="w-[1px] h-6 bg-slate-200 dark:bg-[#222934] mx-1" />
 
-        {/* User Profile Section */}
-        <div
-          className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-[#151A21] cursor-pointer transition-colors"
-          id="navbar-user-avatar-btn"
-        >
-          <div className="relative">
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={user.displayName || 'User Avatar'}
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-[#3B82F6]"
+        {/* User Profile Section with Dropdown Trigger */}
+        <div className="relative">
+          <button
+            onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+            className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-[#151A21] transition-colors focus:outline-none"
+            id="navbar-user-avatar-btn"
+          >
+            <div className="relative">
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || 'User Avatar'}
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-[#3B82F6]"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#1E3A8A] text-white font-bold text-xs flex items-center justify-center shadow-md">
+                  {isGuest ? (
+                    <UserCheck className="w-4 h-4 text-[#FACC15]" />
+                  ) : (
+                    getUserInitials(user?.displayName || 'User')
+                  )}
+                </div>
+              )}
+              <span
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ${
+                  isGuest ? 'bg-[#FACC15]' : 'bg-[#22C55E]'
+                } ring-2 ring-white dark:ring-[#0B0F14]`}
               />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#1E3A8A] text-white font-bold text-xs flex items-center justify-center shadow-md">
-                {isGuest ? (
-                  <UserCheck className="w-4 h-4 text-[#FACC15]" />
-                ) : (
-                  getUserInitials(user?.displayName || 'User')
+            </div>
+
+            {/* User Name & Badge */}
+            <div className="hidden xl:flex flex-col text-left">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-900 dark:text-[#F3F4F6] leading-none">
+                  {user?.displayName || (isGuest ? 'Guest User' : 'Authenticated User')}
+                </span>
+                {isGuest && (
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#FACC15]/10 text-[#FACC15] border border-[#FACC15]/30">
+                    Guest
+                  </span>
                 )}
               </div>
-            )}
-            <span
-              className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ${
-                isGuest ? 'bg-[#FACC15]' : 'bg-[#22C55E]'
-              } ring-2 ring-white dark:ring-[#0B0F14]`}
-            />
-          </div>
-
-          {/* User Name & Badge */}
-          <div className="hidden xl:flex flex-col text-left">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-slate-900 dark:text-[#F3F4F6] leading-none">
-                {user?.displayName || (isGuest ? 'Guest User' : 'Authenticated User')}
+              <span className="text-[10px] text-slate-500 dark:text-[#6B7280] leading-tight mt-0.5 truncate max-w-[120px]">
+                {user?.email || (isGuest ? 'Guest Session' : 'Active')}
               </span>
-              {isGuest && (
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-[#FACC15]/10 text-[#FACC15] border border-[#FACC15]/30">
-                  Guest
-                </span>
-              )}
             </div>
-            <span className="text-[10px] text-slate-500 dark:text-[#6B7280] leading-tight mt-0.5 truncate max-w-[120px]">
-              {user?.email || (isGuest ? 'Guest Session' : 'Active')}
-            </span>
-          </div>
+          </button>
+
+          {/* Profile Dropdown Component */}
+          <ProfileDropdown
+            isOpen={isProfileDropdownOpen}
+            onClose={() => setIsProfileDropdownOpen(false)}
+          />
         </div>
       </div>
     </header>
