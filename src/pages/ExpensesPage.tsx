@@ -6,8 +6,9 @@ import {
   ArrowUpDown,
   LayoutGrid,
   List,
-  Calendar,
+  Calendar as CalendarIcon,
   RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/ui/Card';
@@ -18,7 +19,13 @@ import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import { EmptyState } from '../components/expenses/EmptyState';
 import { ExpenseSkeleton } from '../components/expenses/ExpenseSkeleton';
 import { mockExpensesList, TOP_20_CATEGORIES } from '../data/mockExpensesData';
-import type { ViewMode, SortOption, DateFilterOption } from '../types/expense';
+import type { Expense, ViewMode, SortOption, DateFilterOption } from '../types/expense';
+
+interface DayGroup {
+  dateTitle: string;
+  items: Expense[];
+  subtotal: number;
+}
 
 export const ExpensesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +60,40 @@ export const ExpensesPage: React.FC = () => {
         return 0;
       });
   }, [searchQuery, selectedCategory, sortOption]);
+
+  // Group expenses day-wise
+  const groupedExpenses = useMemo<DayGroup[]>(() => {
+    const groupsMap: { [key: string]: DayGroup } = {};
+
+    filteredExpenses.forEach((item) => {
+      let dateTitle = item.date.split(',')[0].trim();
+      if (dateTitle === 'Today') {
+        dateTitle = 'Today';
+      } else if (dateTitle === 'Yesterday') {
+        dateTitle = 'Yesterday';
+      } else {
+        const parsedDate = new Date(item.isoDate);
+        if (!isNaN(parsedDate.getTime())) {
+          const day = parsedDate.getDate();
+          const month = parsedDate.toLocaleString('en-IN', { month: 'long' });
+          const year = parsedDate.getFullYear();
+          dateTitle = `${day} ${month} ${year}`;
+        }
+      }
+
+      if (!groupsMap[dateTitle]) {
+        groupsMap[dateTitle] = {
+          dateTitle,
+          items: [],
+          subtotal: 0,
+        };
+      }
+      groupsMap[dateTitle].items.push(item);
+      groupsMap[dateTitle].subtotal += item.amount;
+    });
+
+    return Object.values(groupsMap);
+  }, [filteredExpenses]);
 
   // Calculate Summary Stats from filtered set
   const totalAmount = useMemo(() => {
@@ -180,7 +221,7 @@ export const ExpensesPage: React.FC = () => {
                 Date Period
               </label>
               <div className="relative flex items-center">
-                <Calendar className="w-3.5 h-3.5 absolute left-3 text-slate-400 dark:text-[#6B7280] pointer-events-none" />
+                <CalendarIcon className="w-3.5 h-3.5 absolute left-3 text-slate-400 dark:text-[#6B7280] pointer-events-none" />
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value as DateFilterOption)}
@@ -240,7 +281,7 @@ export const ExpensesPage: React.FC = () => {
         </div>
 
         {/* ------------------------------------------------------------- */}
-        {/* 3. EXPENSES CONTENT AREA (CARDS / TABLE / SKELETON / EMPTY)   */}
+        {/* 3. DAY-WISE SEGREGATED EXPENSES CONTENT AREA                  */}
         {/* ------------------------------------------------------------- */}
         {isLoading ? (
           <ExpenseSkeleton count={6} layoutMode={viewMode === 'table' ? 'table' : 'grid'} />
@@ -251,7 +292,7 @@ export const ExpensesPage: React.FC = () => {
             onAddExpense={() => setIsModalOpen(true)}
           />
         ) : viewMode === 'table' ? (
-          /* Table View */
+          /* Day-wise Segregated Table View */
           <Card className="p-0 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -266,32 +307,87 @@ export const ExpensesPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#222934]/60">
-                  {filteredExpenses.map((expense) => (
-                    <ExpenseCard
-                      key={expense.id}
-                      expense={expense}
-                      layoutMode="table"
-                    />
+                  {groupedExpenses.map((group) => (
+                    <React.Fragment key={group.dateTitle}>
+                      {/* Day Header Row */}
+                      <tr className="bg-slate-100/70 dark:bg-[#0B0F14]/90 border-y border-slate-200 dark:border-[#222934]">
+                        <td colSpan={6} className="py-2.5 px-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-[#3B82F6]" />
+                              <span className="text-xs font-extrabold text-slate-900 dark:text-[#F3F4F6] uppercase tracking-wider">
+                                {group.dateTitle}
+                              </span>
+                              <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/30">
+                                {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                              </span>
+                            </div>
+                            <div className="text-xs font-extrabold text-slate-900 dark:text-[#F3F4F6] flex items-center gap-1">
+                              <span className="text-[10px] text-slate-500 font-normal">Day Total:</span>
+                              <span>₹{group.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Day Expenses Rows */}
+                      {group.items.map((expense) => (
+                        <ExpenseCard
+                          key={expense.id}
+                          expense={expense}
+                          layoutMode="table"
+                        />
+                      ))}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
             </div>
           </Card>
         ) : (
-          /* Timeline / Card Grid View */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredExpenses.map((expense) => (
-              <ExpenseCard
-                key={expense.id}
-                expense={expense}
-                layoutMode="grid"
-              />
+          /* Day-wise Segregated Timeline / Cards View */
+          <div className="space-y-8">
+            {groupedExpenses.map((group) => (
+              <div key={group.dateTitle} className="space-y-3">
+                {/* Day Header Banner */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-[#222934]/80">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-[#F3F4F6] tracking-tight">
+                      {group.dateTitle}
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-[#222934] dark:text-[#9CA3AF]">
+                      {group.items.length} {group.items.length === 1 ? 'transaction' : 'transactions'}
+                    </span>
+                  </div>
+
+                  <div className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB] flex items-center gap-1 bg-slate-100 dark:bg-[#151A21] px-2.5 py-1 rounded-xl border border-slate-200 dark:border-[#222934]">
+                    <span className="text-[10px] text-slate-400 font-normal">Day Total:</span>
+                    <span className="text-[#3B82F6]">
+                      ₹{group.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Day Expense Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {group.items.map((expense) => (
+                    <ExpenseCard
+                      key={expense.id}
+                      expense={expense}
+                      layoutMode="grid"
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Add Expense Modal Dialog */}
+      {/* Shared Add Expense Modal Dialog */}
       <AddExpenseModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

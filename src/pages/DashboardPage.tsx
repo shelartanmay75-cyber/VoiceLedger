@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Mic,
@@ -24,6 +24,7 @@ import { useAuth } from '../hooks/useAuth';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import {
   mockMonthlyBudget,
   mockQuickStats,
@@ -33,6 +34,7 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
+  const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
 
   // Determine time-aware greeting
   const getGreeting = (): string => {
@@ -99,6 +101,7 @@ export const DashboardPage: React.FC = () => {
         <Button
           variant="primary"
           size="md"
+          onClick={() => setIsAddExpenseModalOpen(true)}
           leftIcon={<Plus className="w-4 h-4" />}
           id="dashboard-new-record-btn"
         >
@@ -178,6 +181,7 @@ export const DashboardPage: React.FC = () => {
                   <Button
                     variant="secondary"
                     size="sm"
+                    onClick={() => setIsAddExpenseModalOpen(true)}
                     leftIcon={<Plus className="w-3.5 h-3.5" />}
                     id="dashboard-manual-add-btn"
                   >
@@ -400,6 +404,12 @@ export const DashboardPage: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Shared Add Expense Modal Dialog */}
+      <AddExpenseModal
+        isOpen={isAddExpenseModalOpen}
+        onClose={() => setIsAddExpenseModalOpen(false)}
+      />
     </PageContainer>
   );
 };
