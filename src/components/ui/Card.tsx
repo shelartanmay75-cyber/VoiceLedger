@@ -16,11 +16,11 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   return (
     <div
-      className={`bg-[#151A21] border ${
-        accentBorder ? 'border-[#3B82F6]/30' : 'border-[#222934]'
-      } rounded-2xl p-5 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.4)] transition-all duration-300 ${
+      className={`bg-white dark:bg-[#151A21] border ${
+        accentBorder ? 'border-[#3B82F6]/40' : 'border-slate-200 dark:border-[#222934]'
+      } rounded-2xl p-5 shadow-sm dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.4)] transition-all duration-300 ${
         hoverable
-          ? 'hover:border-[#2C3544] hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] hover:-translate-y-0.5'
+          ? 'hover:border-slate-300 dark:hover:border-[#2C3544] hover:shadow-md dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] hover:-translate-y-0.5'
           : ''
       } ${className}`}
       {...props}
@@ -49,7 +49,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
 }) => {
   return (
     <h3
-      className={`text-lg font-semibold text-[#F3F4F6] tracking-tight flex items-center gap-2 ${className}`}
+      className={`text-lg font-semibold text-slate-900 dark:text-[#F3F4F6] tracking-tight flex items-center gap-2 ${className}`}
       {...props}
     >
       {children}
@@ -63,7 +63,7 @@ export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement
   ...props
 }) => {
   return (
-    <p className={`text-xs text-[#9CA3AF] leading-relaxed ${className}`} {...props}>
+    <p className={`text-xs text-slate-500 dark:text-[#9CA3AF] leading-relaxed ${className}`} {...props}>
       {children}
     </p>
   );
@@ -75,7 +75,7 @@ export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => {
   return (
-    <div className={`text-sm text-[#D1D5DB] ${className}`} {...props}>
+    <div className={`text-sm text-slate-700 dark:text-[#D1D5DB] ${className}`} {...props}>
       {children}
     </div>
   );
@@ -88,7 +88,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 }) => {
   return (
     <div
-      className={`mt-5 pt-4 border-t border-[#222934]/60 flex items-center justify-between text-xs text-[#9CA3AF] ${className}`}
+      className={`mt-5 pt-4 border-t border-slate-100 dark:border-[#222934]/60 flex items-center justify-between text-xs text-slate-500 dark:text-[#9CA3AF] ${className}`}
       {...props}
     >
       {children}

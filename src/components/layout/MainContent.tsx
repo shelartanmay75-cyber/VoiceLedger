@@ -11,7 +11,7 @@ export const MainContent: React.FC<MainContentProps> = ({
 }) => {
   return (
     <main
-      className={`flex-1 min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8 bg-[#0B0F14] text-[#F3F4F6] transition-all overflow-x-hidden ${className}`}
+      className={`flex-1 min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-[#0B0F14] text-slate-900 dark:text-[#F3F4F6] transition-colors duration-200 overflow-x-hidden ${className}`}
     >
       <div className="max-w-7xl mx-auto w-full space-y-6">{children}</div>
     </main>

@@ -26,19 +26,19 @@ export const DashboardPage: React.FC = () => {
               <CardTitle>VoiceLedger UI Foundation</CardTitle>
             </div>
             <CardDescription>
-              Reusable UI layout & components configured with dark fintech design tokens.
+              Reusable UI layout & components configured with Light & Dark theme support.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-[#9CA3AF]">
-              Try interacting with the input field, buttons, and navigation elements.
+            <p className="text-sm text-slate-600 dark:text-[#9CA3AF]">
+              Try clicking the sun/moon toggle in the top navbar to switch between Light and Dark themes!
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Voice Search Simulation"
                 placeholder="Type or simulate voice input..."
                 leftIcon={<Mic className="w-4 h-4 text-[#3B82F6]" />}
-                rightIcon={<Search className="w-4 h-4 cursor-pointer hover:text-white" />}
+                rightIcon={<Search className="w-4 h-4 cursor-pointer hover:text-slate-900 dark:hover:text-white" />}
               />
               <Input
                 label="Quick Category Filter"
@@ -64,7 +64,7 @@ export const DashboardPage: React.FC = () => {
               <CardDescription>Placeholder card for transaction history</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="py-6 text-center text-[#6B7280] border border-dashed border-[#222934] rounded-xl">
+              <div className="py-6 text-center text-slate-400 dark:text-[#6B7280] border border-dashed border-slate-200 dark:border-[#222934] rounded-xl">
                 No mock transactions loaded
               </div>
             </CardContent>
@@ -76,7 +76,7 @@ export const DashboardPage: React.FC = () => {
               <CardDescription>Placeholder card for voice transcriptions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="py-6 text-center text-[#6B7280] border border-dashed border-[#222934] rounded-xl">
+              <div className="py-6 text-center text-slate-400 dark:text-[#6B7280] border border-dashed border-slate-200 dark:border-[#222934] rounded-xl">
                 Voice engine standby
               </div>
             </CardContent>
@@ -88,7 +88,7 @@ export const DashboardPage: React.FC = () => {
               <CardDescription>Placeholder card for monthly balance</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="py-6 text-center text-[#6B7280] border border-dashed border-[#222934] rounded-xl">
+              <div className="py-6 text-center text-slate-400 dark:text-[#6B7280] border border-dashed border-slate-200 dark:border-[#222934] rounded-xl">
                 Budget tracking ready
               </div>
             </CardContent>

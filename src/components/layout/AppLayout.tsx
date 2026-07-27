@@ -9,7 +9,7 @@ export const AppLayout: React.FC = () => {
   const [isTabletCollapsed, setIsTabletCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#0B0F14] text-[#F3F4F6] flex flex-col font-sans selection:bg-[#3B82F6]/30 selection:text-[#3B82F6]">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F14] text-slate-900 dark:text-[#F3F4F6] flex flex-col font-sans selection:bg-[#3B82F6]/30 selection:text-[#3B82F6] transition-colors duration-200">
       {/* Top Navigation Bar */}
       <Navbar
         isMobileSidebarOpen={isMobileSidebarOpen}

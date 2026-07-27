@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-bg: #0B0F14;
   --color-brand-card: #151A21;
@@ -18,7 +20,14 @@
 
   --shadow-fintech: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 15px -3px rgba(59, 130, 246, 0.05);
   --shadow-accent-glow: 0 0 25px -5px rgba(59, 130, 246, 0.35);
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
+}
+
+/* Global Theme Transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }
 
 /* Custom Scrollbars */
@@ -28,12 +37,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0F14;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #222934;
+  background: #CBD5E1;
   border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #222934;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -42,15 +55,25 @@
 
 /* Glassmorphism helpers */
 .glass-panel {
-  background: rgba(21, 26, 33, 0.85);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark .glass-panel {
+  background: rgba(21, 26, 33, 0.85);
   border: 1px solid rgba(34, 41, 52, 0.8);
 }
 
 .glass-nav {
-  background: rgba(11, 15, 20, 0.85);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark .glass-nav {
+  background: rgba(11, 15, 20, 0.85);
   border-bottom: 1px solid rgba(34, 41, 52, 0.7);
 }

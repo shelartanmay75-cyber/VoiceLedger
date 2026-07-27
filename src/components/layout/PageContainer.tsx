@@ -26,10 +26,10 @@ export const PageContainer: React.FC<PageContainerProps> = ({
       className={`space-y-6 ${className}`}
     >
       {/* Page Header Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#222934]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-[#222934]">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F3F4F6] tracking-tight font-sans">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-[#F3F4F6] tracking-tight font-sans">
               {title}
             </h1>
             {badge && (
@@ -39,7 +39,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
             )}
           </div>
           {subtitle && (
-            <p className="text-xs sm:text-sm text-[#9CA3AF] max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-[#9CA3AF] max-w-2xl leading-relaxed">
               {subtitle}
             </p>
           )}
