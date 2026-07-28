@@ -73,7 +73,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [trips, setTrips] = useState<Trip[]>(() => (isAuthenticated ? [] : mockTrips));
   const [friends, setFriends] = useState<SharedFriend[]>(() => (isAuthenticated ? [] : mockSharedFriends));
   const [settlements, setSettlements] = useState<SharedSettlement[]>(() => (isAuthenticated ? [] : mockSettlements));
-  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const savedUid = user?.uid;
+    const savedBudget = savedUid ? localStorage.getItem(`voiceledger_budget_${savedUid}`) : null;
+    const isConfigured = savedUid ? localStorage.getItem(`voiceledger_configured_${savedUid}`) === 'true' : false;
+    return {
+      ...defaultProfile,
+      monthlyBudget: savedBudget ? parseFloat(savedBudget) : defaultProfile.monthlyBudget,
+      hasConfiguredBudget: isConfigured,
+    };
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const userId = user?.uid;

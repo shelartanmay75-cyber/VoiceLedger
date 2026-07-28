@@ -10,6 +10,18 @@
   },
   "expenses": [
     {
+      "id": "exp-1785217356738",
+      "title": "petrol",
+      "amount": 20000,
+      "category": "Transportation",
+      "paymentMethod": "UPI",
+      "date": "28 Jul 2026",
+      "isoDate": "2026-07-28T00:00:00.000Z",
+      "notes": "",
+      "iconName": "ShoppingBag",
+      "categoryColor": "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30"
+    },
+    {
       "id": "exp-1785210620893",
       "title": "Expense",
       "amount": 500,

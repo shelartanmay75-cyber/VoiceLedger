@@ -27,11 +27,16 @@ import { MonthlyBudgetSetupModal } from '../components/modals/MonthlyBudgetSetup
 
 export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
-  const { expenses, goals, profile } = useData();
+  const { expenses, goals, profile, isLoading } = useData();
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(true);
 
-  const isNewUserBudgetNeeded = !isGuest && Boolean(user) && !profile.hasConfiguredBudget;
+  const isBudgetAlreadyConfigured = Boolean(
+    profile.hasConfiguredBudget ||
+    (user?.uid && localStorage.getItem(`voiceledger_configured_${user.uid}`) === 'true')
+  );
+
+  const isNewUserBudgetNeeded = !isLoading && !isGuest && Boolean(user) && !isBudgetAlreadyConfigured;
 
   // Dynamic spending calculations from real user expenses
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
