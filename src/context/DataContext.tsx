@@ -98,8 +98,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTrips(fetchedTrips || []);
         setFriends(fetchedShared.friends || []);
         setSettlements(fetchedShared.settlements || []);
+        const savedBudget = userId ? localStorage.getItem(`voiceledger_budget_${userId}`) : null;
+        const isConfigured = userId ? localStorage.getItem(`voiceledger_configured_${userId}`) === 'true' : false;
+
         if (fetchedProfile) {
-          setProfile((prev) => ({ ...prev, ...fetchedProfile }));
+          setProfile((prev) => ({
+            ...prev,
+            ...fetchedProfile,
+            monthlyBudget: fetchedProfile.monthlyBudget || (savedBudget ? parseFloat(savedBudget) : prev.monthlyBudget),
+            hasConfiguredBudget: fetchedProfile.hasConfiguredBudget || isConfigured,
+          }));
         } else if (user) {
           setProfile((prev) => ({
             ...prev,
@@ -107,6 +115,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             displayName: user.displayName || 'User',
             email: user.email || '',
             photoURL: user.photoURL || prev.photoURL,
+            monthlyBudget: savedBudget ? parseFloat(savedBudget) : prev.monthlyBudget,
+            hasConfiguredBudget: isConfigured,
           }));
         }
       } else {
@@ -222,6 +232,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Profile update
   const updateProfile = async (profileData: Partial<UserProfile>) => {
+    if (userId) {
+      if (profileData.monthlyBudget) {
+        localStorage.setItem(`voiceledger_budget_${userId}`, String(profileData.monthlyBudget));
+      }
+      if (profileData.hasConfiguredBudget !== undefined) {
+        localStorage.setItem(`voiceledger_configured_${userId}`, String(profileData.hasConfiguredBudget));
+      }
+    }
     const updated = await profileService.updateProfile(profileData, userId);
     setProfile((prev) => ({ ...prev, ...updated }));
   };
