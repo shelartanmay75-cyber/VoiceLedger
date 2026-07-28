@@ -67,7 +67,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, isGuest } = useAuth();
   const isAuthenticated = Boolean(user && user.uid !== 'guest_user_demo' && !isGuest);
 
-  const [expenses, setExpenses] = useState<Expense[]>(() => (isAuthenticated ? [] : mockExpensesList));
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    if (userId) {
+      const cached = localStorage.getItem(`voiceledger_expenses_${userId}`);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (_) {}
+      }
+    }
+    return isAuthenticated ? [] : mockExpensesList;
+  });
   const [goals, setGoals] = useState<SavingsGoal[]>(() => (isAuthenticated ? [] : mockSavingsGoals));
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isAuthenticated ? [] : mockSubscriptions));
   const [trips, setTrips] = useState<Trip[]>(() => (isAuthenticated ? [] : mockTrips));

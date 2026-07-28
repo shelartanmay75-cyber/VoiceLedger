@@ -9,7 +9,34 @@ export const expenseService = {
   async fetchExpenses(userId?: string): Promise<Expense[]> {
     const key = `voiceledger_expenses_${userId || 'guest'}`;
 
-    // 1. Try Firebase Firestore with timeout
+    // 1. Read local cache first
+    let cachedList: Expense[] = [];
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        cachedList = JSON.parse(cached);
+      }
+    } catch (_) {}
+
+    // 2. Try REST API
+    try {
+      const res = await apiFetch('/expenses', {}, userId);
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list)) {
+          const idMap = new Map<string, Expense>();
+          cachedList.forEach((item) => idMap.set(item.id, item));
+          list.forEach((item) => idMap.set(item.id, item));
+          const merged = Array.from(idMap.values());
+          localStorage.setItem(key, JSON.stringify(merged));
+          return merged;
+        }
+      }
+    } catch (err) {
+      console.warn('REST API fetchExpenses notice:', err);
+    }
+
+    // 3. Try Firebase Firestore
     if (db && userId && userId !== 'guest_user_demo') {
       try {
         const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1500));
@@ -20,37 +47,19 @@ export const expenseService = {
             id: docSnap.id,
             ...(docSnap.data() as Omit<Expense, 'id'>),
           }));
-          localStorage.setItem(key, JSON.stringify(list));
-          return list;
+          const idMap = new Map<string, Expense>();
+          cachedList.forEach((item) => idMap.set(item.id, item));
+          list.forEach((item) => idMap.set(item.id, item));
+          const merged = Array.from(idMap.values());
+          localStorage.setItem(key, JSON.stringify(merged));
+          return merged;
         }
       } catch (err) {
-        console.warn('Firestore fetchExpenses timeout or error:', err);
+        console.warn('Firestore fetchExpenses notice:', err);
       }
     }
 
-    // 2. Fallback to Express REST API
-    try {
-      const res = await apiFetch('/expenses', {}, userId);
-      if (res.ok) {
-        const list = await res.json();
-        if (Array.isArray(list) && list.length > 0) {
-          localStorage.setItem(key, JSON.stringify(list));
-          return list;
-        }
-      }
-    } catch (err) {
-      console.warn('REST API fetchExpenses notice:', err);
-    }
-
-    // 3. Fallback to local persistent cache
-    try {
-      const cached = localStorage.getItem(key);
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch (_) {}
-
-    return [];
+    return cachedList;
   },
 
   async addExpense(expenseData: Omit<Expense, 'id'>, userId?: string): Promise<Expense> {
@@ -73,6 +82,15 @@ export const expenseService = {
 
     // Persist in cloud / backend asynchronously in background
     (async () => {
+      try {
+        await apiFetch('/expenses', {
+          method: 'POST',
+          body: JSON.stringify(newExpense),
+        }, userId);
+      } catch (err) {
+        console.warn('Background REST API addExpense notice:', err);
+      }
+
       if (db && userId && userId !== 'guest_user_demo') {
         try {
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1500));
@@ -83,15 +101,6 @@ export const expenseService = {
         } catch (err) {
           console.warn('Background Firestore addExpense notice:', err);
         }
-      }
-
-      try {
-        await apiFetch('/expenses', {
-          method: 'POST',
-          body: JSON.stringify(newExpense),
-        }, userId);
-      } catch (err) {
-        console.warn('Background REST API addExpense notice:', err);
       }
     })();
 
@@ -115,18 +124,18 @@ export const expenseService = {
 
     // Persist in backend asynchronously
     (async () => {
+      try {
+        await apiFetch(`/expenses/${expenseId}`, { method: 'DELETE' }, userId);
+      } catch (err) {
+        console.warn('Background REST API deleteExpense error:', err);
+      }
+
       if (db && userId && userId !== 'guest_user_demo') {
         try {
           await deleteDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, expenseId));
         } catch (err) {
           console.warn('Background Firestore deleteExpense error:', err);
         }
-      }
-
-      try {
-        await apiFetch(`/expenses/${expenseId}`, { method: 'DELETE' }, userId);
-      } catch (err) {
-        console.warn('Background REST API deleteExpense error:', err);
       }
     })();
 
