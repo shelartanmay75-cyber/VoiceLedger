@@ -11,7 +11,6 @@ import { SharedExpensesPage } from '../pages/SharedExpensesPage';
 import { SubscriptionsPage } from '../pages/SubscriptionsPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { ProfilePage } from '../pages/ProfilePage';
-import { VoicePage } from '../pages/VoicePage';
 
 export const router = createBrowserRouter([
   {
@@ -29,10 +28,6 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
-      },
-      {
-        path: 'voice',
-        element: <VoicePage />,
       },
       {
         path: 'expenses',

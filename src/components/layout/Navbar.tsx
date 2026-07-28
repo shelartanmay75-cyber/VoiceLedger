@@ -99,7 +99,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => navigate('/voice')}
+          onClick={() => {
+            navigate('/');
+            setTimeout(() => {
+              const el = document.getElementById('voice-mic-main-btn') || document.getElementById('dashboard-voice-recorder');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          }}
           className="hidden sm:flex items-center gap-1.5 border-[#3B82F6]/20 bg-[#3B82F6]/5 text-[#3B82F6] hover:bg-[#3B82F6]/15 hover:border-[#3B82F6]/40"
           id="navbar-voice-action-btn"
         >

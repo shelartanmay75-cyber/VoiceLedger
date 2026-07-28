@@ -30,7 +30,6 @@ export interface SidebarProps {
 
 const navItems: NavItem[] = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Voice Recorder', path: '/voice', icon: Mic, badge: 'AI' },
   { name: 'Expenses', path: '/expenses', icon: Receipt, badge: '12' },
   { name: 'Analytics', path: '/analytics', icon: BarChart3 },
   { name: 'Goals', path: '/goals', icon: Target },

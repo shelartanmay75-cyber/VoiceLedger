@@ -134,7 +134,7 @@ export const DashboardPage: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         {/* 2. MAIN KEY FEATURE: VOICE RECORDING HERO BOX (FULL WIDTH)   */}
         {/* ------------------------------------------------------------- */}
-        <Card accentBorder className="w-full relative overflow-hidden p-6 sm:p-8">
+        <Card accentBorder id="dashboard-voice-recorder" className="w-full relative overflow-hidden p-6 sm:p-8">
           {/* Background Glows */}
           <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#3B82F6]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-10 w-72 h-72 bg-[#2563EB]/5 rounded-full blur-3xl pointer-events-none" />
