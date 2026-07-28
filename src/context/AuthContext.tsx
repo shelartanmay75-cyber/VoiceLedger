@@ -97,8 +97,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsGuest(false);
         localStorage.removeItem(GUEST_STORAGE_KEY);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing in with Google:', error);
+      if (error?.code === 'auth/unauthorized-domain') {
+        alert('Unauthorized Domain: Please add "localhost" and your Vercel URL to Firebase Console -> Authentication -> Settings -> Authorized domains.');
+      } else if (error?.code === 'auth/popup-closed-by-user') {
+        console.warn('Sign-in popup was closed before completing auth.');
+      } else {
+        alert(`Google Sign-In Note: Please ensure you clicked "Get Started" in Firebase Console under Authentication. (${error?.message || 'Error opening sign-in popup'})`);
+      }
       throw error;
     } finally {
       setLoading(false);
