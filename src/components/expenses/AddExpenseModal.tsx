@@ -130,16 +130,21 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClos
 
                   {/* Date Input */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-slate-600 dark:text-[#9CA3AF]">
-                      Transaction Date
+                    <label className="text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">
+                      Transaction Date (Calendar Picker)
                     </label>
-                    <div className="relative flex items-center">
-                      <Calendar className="w-4 h-4 absolute left-3.5 text-slate-400 dark:text-[#6B7280] pointer-events-none" />
+                    <div className="relative flex items-center cursor-pointer" onClick={(e) => {
+                      const input = e.currentTarget.querySelector('input');
+                      if (input) {
+                        try { if ('showPicker' in input) (input as any).showPicker(); } catch (_) {}
+                      }
+                    }}>
+                      <Calendar className="w-4 h-4 absolute left-3.5 text-[#3B82F6] pointer-events-none" />
                       <input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-sm rounded-xl border border-slate-200 dark:border-[#222934] pl-10 pr-4 py-2.5 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all"
+                        className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-xs sm:text-sm font-semibold rounded-xl border border-slate-200 dark:border-[#222934] pl-10 pr-4 py-2.5 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
                       />
                     </div>
                   </div>

@@ -22,6 +22,29 @@ export interface ExpenseReviewCardProps {
   onReset: () => void;
 }
 
+/**
+ * Converts relative or freeform date strings (e.g., "Today", "Yesterday") into ISO YYYY-MM-DD format for HTML5 calendar picker
+ */
+function toISODateString(dateStr: string): string {
+  const lower = (dateStr || '').toLowerCase().trim();
+  const today = new Date();
+
+  if (lower === 'today' || !lower) {
+    return today.toISOString().split('T')[0];
+  }
+  if (lower === 'yesterday') {
+    const yest = new Date(today.getTime() - 86400000);
+    return yest.toISOString().split('T')[0];
+  }
+
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+
+  return today.toISOString().split('T')[0];
+}
+
 export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
   expense,
   onUpdateExpense,
@@ -33,6 +56,8 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
       [field]: field === 'amount' ? Number(value) || 0 : value,
     });
   };
+
+  const isoDateValue = toISODateString(expense.date);
 
   return (
     <motion.div
@@ -105,22 +130,50 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
           id="review-field-merchant"
         />
 
-        {/* Category Dropdown (Must always be an editable dropdown with all 20 categories) */}
+        {/* Category Dropdown */}
         <CategoryDropdown
           value={expense.category}
           onChange={(newCat) => handleChange('category', newCat)}
           id="review-field-category"
         />
 
-        {/* Date */}
-        <EditableField
-          label="Date"
-          value={expense.date}
-          onChange={(val) => handleChange('date', val)}
-          icon={<Calendar className="w-4 h-4" />}
-          placeholder="e.g. Today, Yesterday"
-          id="review-field-date"
-        />
+        {/* Interactive Calendar Date Picker */}
+        <div className="space-y-1.5">
+          <label htmlFor="review-field-date" className="block text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">
+            Date (Calendar Picker)
+          </label>
+          <div className="relative group cursor-pointer" onClick={() => {
+            const inputEl = document.getElementById('review-field-date') as HTMLInputElement;
+            if (inputEl) {
+              try { if ('showPicker' in inputEl) (inputEl as any).showPicker(); } catch (_) {}
+            }
+          }}>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3B82F6] pointer-events-none">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <input
+              id="review-field-date"
+              type="date"
+              value={isoDateValue}
+              onChange={(e) => {
+                const selectedVal = e.target.value;
+                if (selectedVal) {
+                  const d = new Date(selectedVal);
+                  const formatted = d.toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  });
+                  handleChange('date', formatted);
+                }
+              }}
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#0B0F14] text-xs sm:text-sm font-semibold text-slate-900 dark:text-[#F3F4F6] border border-slate-200 dark:border-[#222934] rounded-xl focus:ring-2 focus:ring-[#3B82F6]/30 focus:border-[#3B82F6] outline-none transition-all cursor-pointer"
+            />
+          </div>
+          <span className="text-[10px] text-slate-400 dark:text-[#6B7280]">
+            Selected: <span className="font-semibold text-slate-700 dark:text-[#D1D5DB]">{expense.date || 'Today'}</span>
+          </span>
+        </div>
 
         {/* Payment Method */}
         <EditableField

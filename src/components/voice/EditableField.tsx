@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useRef } from 'react';
 
 export interface EditableFieldProps {
   label: string;
   value: string | number;
   onChange: (val: string) => void;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'date';
   icon?: React.ReactNode;
   placeholder?: string;
   disabled?: boolean;
@@ -26,13 +26,24 @@ export const EditableField: React.FC<EditableFieldProps> = ({
   className = '',
 }) => {
   const fieldId = id || `editable-field-${label.toLowerCase().replace(/\s+/g, '-')}`;
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleClick = () => {
+    if (type === 'date' && inputRef.current) {
+      try {
+        if ('showPicker' in inputRef.current) {
+          (inputRef.current as any).showPicker();
+        }
+      } catch (_) {}
+    }
+  };
 
   return (
     <div className={`space-y-1.5 ${className}`}>
       <label htmlFor={fieldId} className="block text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">
         {label}
       </label>
-      <div className="relative group">
+      <div className="relative group cursor-pointer" onClick={handleClick}>
         {icon && (
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3B82F6] pointer-events-none">
             {icon}
@@ -44,6 +55,7 @@ export const EditableField: React.FC<EditableFieldProps> = ({
           </div>
         )}
         <input
+          ref={inputRef}
           id={fieldId}
           type={type}
           value={value}
@@ -52,7 +64,9 @@ export const EditableField: React.FC<EditableFieldProps> = ({
           placeholder={placeholder}
           className={`w-full py-2.5 bg-slate-50 dark:bg-[#0B0F14] text-xs sm:text-sm font-semibold text-slate-900 dark:text-[#F3F4F6] border border-slate-200 dark:border-[#222934] rounded-xl focus:ring-2 focus:ring-[#3B82F6]/30 focus:border-[#3B82F6] outline-none transition-all ${
             icon || prefix ? 'pl-9' : 'pl-3'
-          } pr-3 placeholder-slate-400 dark:placeholder-[#4B5563] disabled:opacity-60 disabled:cursor-not-allowed`}
+          } pr-3 placeholder-slate-400 dark:placeholder-[#4B5563] disabled:opacity-60 disabled:cursor-not-allowed ${
+            type === 'date' ? 'cursor-pointer' : ''
+          }`}
         />
       </div>
     </div>

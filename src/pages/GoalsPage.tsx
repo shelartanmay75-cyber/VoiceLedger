@@ -31,6 +31,7 @@ export const GoalsPage: React.FC = () => {
   const [goalTitle, setGoalTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [targetDate, setTargetDate] = useState('Dec 2026');
+  const [targetDateIso, setTargetDateIso] = useState('2026-12-31');
   const [goalCategory, setGoalCategory] = useState('Safety');
 
   const totalGoalsSaved = goals.reduce((acc, curr) => acc + curr.currentAmount, 0);
@@ -297,7 +298,31 @@ export const GoalsPage: React.FC = () => {
                     <option value="Electronics">Electronics & Gadgets</option>
                   </select>
                 </div>
-                <Input label="Target Date" placeholder="e.g. Dec 2026" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} leftIcon={<CalendarIcon className="w-4 h-4" />} />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">Target Date (Calendar Picker)</label>
+                  <div className="relative flex items-center cursor-pointer" onClick={(e) => {
+                    const input = e.currentTarget.querySelector('input');
+                    if (input) {
+                      try { if ('showPicker' in input) (input as any).showPicker(); } catch (_) {}
+                    }
+                  }}>
+                    <CalendarIcon className="w-4 h-4 absolute left-3.5 text-[#3B82F6] pointer-events-none" />
+                    <input
+                      type="date"
+                      value={targetDateIso}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTargetDateIso(val);
+                        if (val) {
+                          const d = new Date(val);
+                          const formatted = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                          setTargetDate(formatted);
+                        }
+                      }}
+                      className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-xs sm:text-sm font-semibold rounded-xl border border-slate-200 dark:border-[#222934] pl-10 pr-4 py-2.5 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
+                    />
+                  </div>
+                </div>
                 <div className="pt-3 flex justify-end gap-2">
                   <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
                   <Button type="submit" variant="primary">Save Goal</Button>
