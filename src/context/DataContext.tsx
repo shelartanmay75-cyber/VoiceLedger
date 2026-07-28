@@ -65,6 +65,7 @@ export const DataContext = createContext<DataContextType | undefined>(undefined)
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isGuest } = useAuth();
+  const userId = user?.uid;
   const isAuthenticated = Boolean(user && user.uid !== 'guest_user_demo' && !isGuest);
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
@@ -95,8 +96,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const userId = user?.uid;
 
   const refreshData = useCallback(async () => {
     setIsLoading(true);
