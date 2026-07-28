@@ -1,9 +1,9 @@
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 import type { SavingsGoal } from '../types/featurePages';
+import { apiFetch } from './apiClient';
 
-const COLLECTION_NAME = 'savings_goals';
-const API_URL = '/api/goals';
+const COLLECTION_NAME = 'goals';
 
 export const goalsService = {
   async fetchGoals(userId?: string): Promise<SavingsGoal[]> {
@@ -17,12 +17,12 @@ export const goalsService = {
           }));
         }
       } catch (err) {
-        console.warn('Firestore fetchGoals error:', err);
+        console.warn('Firestore fetchGoals error, falling back to REST API:', err);
       }
     }
 
     try {
-      const res = await fetch(API_URL);
+      const res = await apiFetch('/goals', {}, userId);
       if (res.ok) {
         return await res.json();
       }
@@ -49,11 +49,10 @@ export const goalsService = {
     }
 
     try {
-      await fetch(API_URL, {
+      await apiFetch('/goals', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newGoal),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API addGoal error:', err);
     }
@@ -62,28 +61,28 @@ export const goalsService = {
   },
 
   async depositToGoal(goalId: string, amount: number, currentAmount: number, userId?: string): Promise<number> {
-    const updatedAmount = currentAmount + amount;
+    const newTotal = currentAmount + amount;
 
     if (db && userId && userId !== 'guest_user_demo') {
       try {
-        const goalRef = doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId);
-        await updateDoc(goalRef, { currentAmount: updatedAmount });
+        await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId), {
+          currentAmount: newTotal,
+        });
       } catch (err) {
         console.warn('Firestore depositToGoal error:', err);
       }
     }
 
     try {
-      await fetch(`${API_URL}/${goalId}/deposit`, {
+      await apiFetch(`/goals/${goalId}/deposit`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount }),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API depositToGoal error:', err);
     }
 
-    return updatedAmount;
+    return newTotal;
   },
 
   async deleteGoal(goalId: string, userId?: string): Promise<boolean> {
@@ -96,7 +95,7 @@ export const goalsService = {
     }
 
     try {
-      await fetch(`${API_URL}/${goalId}`, { method: 'DELETE' });
+      await apiFetch(`/goals/${goalId}`, { method: 'DELETE' }, userId);
     } catch (err) {
       console.warn('REST API deleteGoal error:', err);
     }

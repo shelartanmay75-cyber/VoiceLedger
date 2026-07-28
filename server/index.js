@@ -11,20 +11,28 @@ const DB_PATH = path.join(__dirname, 'db.json');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// CORS setup allowing Vercel frontend domains and local dev
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin, credentials: true }));
 app.use(express.json());
 
 // Utility to read DB
 const readDB = () => {
   try {
     if (!fs.existsSync(DB_PATH)) {
-      return { profile: {}, expenses: [], goals: [], subscriptions: [], trips: [], friends: [], settlements: [] };
+      const initial = { users: {}, profile: {}, expenses: [], goals: [], subscriptions: [], trips: [], friends: [], settlements: [] };
+      try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2), 'utf-8');
+      } catch (_) {}
+      return initial;
     }
     const data = fs.readFileSync(DB_PATH, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (!parsed.users) parsed.users = {};
+    return parsed;
   } catch (err) {
     console.error('Error reading db.json:', err);
-    return { profile: {}, expenses: [], goals: [], subscriptions: [], trips: [], friends: [], settlements: [] };
+    return { users: {}, profile: {}, expenses: [], goals: [], subscriptions: [], trips: [], friends: [], settlements: [] };
   }
 };
 
@@ -37,31 +45,96 @@ const writeDB = (data) => {
   }
 };
 
+/**
+ * Gets or initializes user-isolated data store for multi-user isolation
+ */
+const getUserStore = (db, userId) => {
+  if (!userId || userId === 'demo_user' || userId === 'guest_user_demo') {
+    // Shared demo data
+    return {
+      expenses: db.expenses || [],
+      goals: db.goals || [],
+      subscriptions: db.subscriptions || [],
+      trips: db.trips || [],
+      friends: db.friends || [],
+      settlements: db.settlements || [],
+      profile: db.profile || {},
+    };
+  }
+
+  // Real Google User ID
+  if (!db.users) db.users = {};
+  if (!db.users[userId]) {
+    // Initialize clean slate for new authenticated user
+    db.users[userId] = {
+      expenses: [],
+      goals: [],
+      subscriptions: [],
+      trips: [],
+      friends: [],
+      settlements: [],
+      profile: { uid: userId, monthlyBudget: 40000, currency: '₹' },
+    };
+  }
+  return db.users[userId];
+};
+
+/**
+ * Saves updated user store back into the global DB
+ */
+const saveUserStore = (db, userId, updatedStore) => {
+  if (!userId || userId === 'demo_user' || userId === 'guest_user_demo') {
+    db.expenses = updatedStore.expenses;
+    db.goals = updatedStore.goals;
+    db.subscriptions = updatedStore.subscriptions;
+    db.trips = updatedStore.trips;
+    db.friends = updatedStore.friends;
+    db.settlements = updatedStore.settlements;
+    db.profile = updatedStore.profile;
+  } else {
+    if (!db.users) db.users = {};
+    db.users[userId] = updatedStore;
+  }
+  writeDB(db);
+};
+
+// Helper middleware to get userId
+const getUserId = (req) => {
+  return req.headers['x-user-id'] || req.query.userId || 'demo_user';
+};
+
 // -------------------------------------------------------------
 // HEALTH CHECK
 // -------------------------------------------------------------
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', service: 'VoiceLedger Express Backend', timestamp: new Date().toISOString() });
 });
 
 // -------------------------------------------------------------
-// GET ALL APP DATA
+// GET ALL APP DATA FOR ACTIVE USER
 // -------------------------------------------------------------
 app.get('/api/data', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db);
+  const userData = getUserStore(db, userId);
+  res.json(userData);
 });
 
 // -------------------------------------------------------------
-// EXPENSES API
+// EXPENSES API (Per User)
 // -------------------------------------------------------------
 app.get('/api/expenses', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db.expenses || []);
+  const store = getUserStore(db, userId);
+  res.json(store.expenses || []);
 });
 
 app.post('/api/expenses', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
+
   const newExpense = {
     id: `exp-${Date.now()}`,
     title: req.body.title || 'Untitled Expense',
@@ -69,35 +142,43 @@ app.post('/api/expenses', (req, res) => {
     category: req.body.category || 'Miscellaneous',
     paymentMethod: req.body.paymentMethod || 'UPI',
     date: req.body.date || 'Today',
-    isoDate: req.body.isoDate || new Date().toISOString(),
+    isoDate: req.body.isoDate || new Date().toISOString().split('T')[0],
     notes: req.body.notes || '',
     iconName: req.body.iconName || 'ShoppingBag',
     categoryColor: req.body.categoryColor || 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30',
   };
 
-  db.expenses = [newExpense, ...(db.expenses || [])];
-  writeDB(db);
+  store.expenses = [newExpense, ...(store.expenses || [])];
+  saveUserStore(db, userId, store);
   res.status(201).json(newExpense);
 });
 
 app.delete('/api/expenses/:id', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
   const { id } = req.params;
-  db.expenses = (db.expenses || []).filter((e) => e.id !== id);
-  writeDB(db);
+
+  store.expenses = (store.expenses || []).filter((e) => e.id !== id);
+  saveUserStore(db, userId, store);
   res.json({ success: true, id });
 });
 
 // -------------------------------------------------------------
-// SAVINGS GOALS API
+// SAVINGS GOALS API (Per User)
 // -------------------------------------------------------------
 app.get('/api/goals', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db.goals || []);
+  const store = getUserStore(db, userId);
+  res.json(store.goals || []);
 });
 
 app.post('/api/goals', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
+
   const newGoal = {
     id: `goal-${Date.now()}`,
     title: req.body.title || 'New Goal',
@@ -108,46 +189,57 @@ app.post('/api/goals', (req, res) => {
     iconName: req.body.iconName || 'Target',
     color: req.body.color || 'from-[#3B82F6] to-[#1D4ED8]',
   };
-  db.goals = [newGoal, ...(db.goals || [])];
-  writeDB(db);
+
+  store.goals = [newGoal, ...(store.goals || [])];
+  saveUserStore(db, userId, store);
   res.status(201).json(newGoal);
 });
 
 app.patch('/api/goals/:id/deposit', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
   const { id } = req.params;
   const depositAmount = Number(req.body.amount) || 0;
-  
-  db.goals = (db.goals || []).map((g) => {
+
+  store.goals = (store.goals || []).map((g) => {
     if (g.id === id) {
       return { ...g, currentAmount: g.currentAmount + depositAmount };
     }
     return g;
   });
 
-  writeDB(db);
-  const updatedGoal = db.goals.find((g) => g.id === id);
+  saveUserStore(db, userId, store);
+  const updatedGoal = store.goals.find((g) => g.id === id);
   res.json(updatedGoal || { error: 'Goal not found' });
 });
 
 app.delete('/api/goals/:id', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
   const { id } = req.params;
-  db.goals = (db.goals || []).filter((g) => g.id !== id);
-  writeDB(db);
+
+  store.goals = (store.goals || []).filter((g) => g.id !== id);
+  saveUserStore(db, userId, store);
   res.json({ success: true, id });
 });
 
 // -------------------------------------------------------------
-// SUBSCRIPTIONS API
+// SUBSCRIPTIONS API (Per User)
 // -------------------------------------------------------------
 app.get('/api/subscriptions', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db.subscriptions || []);
+  const store = getUserStore(db, userId);
+  res.json(store.subscriptions || []);
 });
 
 app.post('/api/subscriptions', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
+
   const newSub = {
     id: `sub-${Date.now()}`,
     name: req.body.name || 'New Service',
@@ -159,43 +251,56 @@ app.post('/api/subscriptions', (req, res) => {
     logoColor: req.body.logoColor || 'bg-[#3B82F6]',
     iconName: req.body.iconName || 'Tv',
   };
-  db.subscriptions = [newSub, ...(db.subscriptions || [])];
-  writeDB(db);
+
+  store.subscriptions = [newSub, ...(store.subscriptions || [])];
+  saveUserStore(db, userId, store);
   res.status(201).json(newSub);
 });
 
 app.patch('/api/subscriptions/:id/toggle', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
   const { id } = req.params;
-  db.subscriptions = (db.subscriptions || []).map((s) => {
+
+  store.subscriptions = (store.subscriptions || []).map((s) => {
     if (s.id === id) {
       return { ...s, status: s.status === 'active' ? 'cancelling' : 'active' };
     }
     return s;
   });
-  writeDB(db);
-  const updated = db.subscriptions.find((s) => s.id === id);
+
+  saveUserStore(db, userId, store);
+  const updated = store.subscriptions.find((s) => s.id === id);
   res.json(updated);
 });
 
 app.delete('/api/subscriptions/:id', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
   const { id } = req.params;
-  db.subscriptions = (db.subscriptions || []).filter((s) => s.id !== id);
-  writeDB(db);
+
+  store.subscriptions = (store.subscriptions || []).filter((s) => s.id !== id);
+  saveUserStore(db, userId, store);
   res.json({ success: true, id });
 });
 
 // -------------------------------------------------------------
-// TRIPS & TRIP EXPENSES API
+// TRIPS API (Per User)
 // -------------------------------------------------------------
 app.get('/api/trips', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db.trips || []);
+  const store = getUserStore(db, userId);
+  res.json(store.trips || []);
 });
 
 app.post('/api/trips', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
+
   const newTrip = {
     id: `trip-${Date.now()}`,
     title: req.body.title || 'New Trip',
@@ -209,14 +314,18 @@ app.post('/api/trips', (req, res) => {
     coverGradient: req.body.coverGradient || 'from-[#06B6D4] to-[#3B82F6]',
     expensesList: [],
   };
-  db.trips = [newTrip, ...(db.trips || [])];
-  writeDB(db);
+
+  store.trips = [newTrip, ...(store.trips || [])];
+  saveUserStore(db, userId, store);
   res.status(201).json(newTrip);
 });
 
 app.post('/api/trips/:id/expenses', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
   const { id } = req.params;
+
   const newTripExpense = {
     id: `te-${Date.now()}`,
     description: req.body.description || 'Trip expense',
@@ -226,7 +335,7 @@ app.post('/api/trips/:id/expenses', (req, res) => {
     date: req.body.date || 'Today',
   };
 
-  db.trips = (db.trips || []).map((t) => {
+  store.trips = (store.trips || []).map((t) => {
     if (t.id === id) {
       const expensesList = [...(t.expensesList || []), newTripExpense];
       const totalSpent = expensesList.reduce((acc, curr) => acc + curr.amount, 0);
@@ -235,21 +344,26 @@ app.post('/api/trips/:id/expenses', (req, res) => {
     return t;
   });
 
-  writeDB(db);
-  const updatedTrip = db.trips.find((t) => t.id === id);
+  saveUserStore(db, userId, store);
+  const updatedTrip = store.trips.find((t) => t.id === id);
   res.json(updatedTrip);
 });
 
 // -------------------------------------------------------------
-// SHARED EXPENSES & FRIENDS API
+// SHARED EXPENSES & FRIENDS API (Per User)
 // -------------------------------------------------------------
 app.get('/api/shared/friends', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db.friends || []);
+  const store = getUserStore(db, userId);
+  res.json(store.friends || []);
 });
 
 app.post('/api/shared/friends', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
+
   const newFriend = {
     id: `f-${Date.now()}`,
     name: req.body.name || 'New Friend',
@@ -257,16 +371,20 @@ app.post('/api/shared/friends', (req, res) => {
     balance: 0,
     statusText: 'Settled Up',
   };
-  db.friends = [newFriend, ...(db.friends || [])];
-  writeDB(db);
+
+  store.friends = [newFriend, ...(store.friends || [])];
+  saveUserStore(db, userId, store);
   res.status(201).json(newFriend);
 });
 
 app.post('/api/shared/settle', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
+  const store = getUserStore(db, userId);
+
   const friendName = req.body.friendName;
   const amount = Number(req.body.amount) || 0;
-  const type = req.body.type || 'received'; // received | paid
+  const type = req.body.type || 'received';
 
   const newSettlement = {
     id: `s-${Date.now()}`,
@@ -276,16 +394,15 @@ app.post('/api/shared/settle', (req, res) => {
     date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
   };
 
-  db.settlements = [newSettlement, ...(db.settlements || [])];
+  store.settlements = [newSettlement, ...(store.settlements || [])];
 
-  // Update friend balance
-  db.friends = (db.friends || []).map((f) => {
+  store.friends = (store.friends || []).map((f) => {
     if (f.name.toLowerCase() === friendName.toLowerCase()) {
       let newBalance = f.balance;
       if (type === 'received') {
-        newBalance -= amount; // reduces what they owe you
+        newBalance -= amount;
       } else {
-        newBalance += amount; // reduces what you owe them
+        newBalance += amount;
       }
       let statusText = 'Settled Up';
       if (newBalance > 0) statusText = `Owes you ₹${newBalance.toLocaleString('en-IN')}`;
@@ -295,23 +412,28 @@ app.post('/api/shared/settle', (req, res) => {
     return f;
   });
 
-  writeDB(db);
-  res.status(201).json({ settlement: newSettlement, friends: db.friends });
+  saveUserStore(db, userId, store);
+  res.status(201).json({ settlement: newSettlement, friends: store.friends });
 });
 
 // -------------------------------------------------------------
-// PROFILE API
+// PROFILE API (Per User)
 // -------------------------------------------------------------
 app.get('/api/profile', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  res.json(db.profile || {});
+  const store = getUserStore(db, userId);
+  res.json(store.profile || {});
 });
 
 app.put('/api/profile', (req, res) => {
+  const userId = getUserId(req);
   const db = readDB();
-  db.profile = { ...(db.profile || {}), ...req.body };
-  writeDB(db);
-  res.json(db.profile);
+  const store = getUserStore(db, userId);
+
+  store.profile = { ...(store.profile || {}), ...req.body };
+  saveUserStore(db, userId, store);
+  res.json(store.profile);
 });
 
 // Start server

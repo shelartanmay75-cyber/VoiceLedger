@@ -1,8 +1,7 @@
 import { db } from '../config/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import type { SharedFriend, SharedSettlement } from '../types/featurePages';
-
-const API_URL = '/api/shared';
+import { apiFetch } from './apiClient';
 
 export const sharedService = {
   async fetchSharedData(userId?: string): Promise<{ friends: SharedFriend[]; settlements: SharedSettlement[] }> {
@@ -11,20 +10,33 @@ export const sharedService = {
         const friendsSnap = await getDocs(collection(db, `users/${userId}/friends`));
         const settlementsSnap = await getDocs(collection(db, `users/${userId}/settlements`));
 
-        if (!friendsSnap.empty) {
-          const friends = friendsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SharedFriend, 'id'>) }));
-          const settlements = settlementsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SharedSettlement, 'id'>) }));
+        const friends = friendsSnap.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<SharedFriend, 'id'>),
+        }));
+
+        const settlements = settlementsSnap.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<SharedSettlement, 'id'>),
+        }));
+
+        if (friends.length > 0 || settlements.length > 0) {
           return { friends, settlements };
         }
       } catch (err) {
-        console.warn('Firestore fetchSharedData error:', err);
+        console.warn('Firestore fetchSharedData error, falling back to REST API:', err);
       }
     }
 
     try {
-      const friendsRes = await fetch(`${API_URL}/friends`);
+      const [friendsRes, settlementsRes] = await Promise.all([
+        apiFetch('/shared/friends', {}, userId),
+        apiFetch('/shared/settlements', {}, userId),
+      ]);
+
       const friends = friendsRes.ok ? await friendsRes.json() : [];
-      return { friends, settlements: [] };
+      const settlements = settlementsRes.ok ? await settlementsRes.json() : [];
+      return { friends, settlements };
     } catch (err) {
       console.warn('REST API fetchSharedData error:', err);
     }
@@ -32,10 +44,11 @@ export const sharedService = {
     return { friends: [], settlements: [] };
   },
 
-  async addFriend(friendData: Omit<SharedFriend, 'id' | 'balance' | 'statusText'>, userId?: string): Promise<SharedFriend> {
+  async addFriend(friendData: { name: string; email: string }, userId?: string): Promise<SharedFriend> {
     const newFriend: SharedFriend = {
-      ...friendData,
       id: `f-${Date.now()}`,
+      name: friendData.name,
+      email: friendData.email,
       balance: 0,
       statusText: 'Settled Up',
     };
@@ -50,11 +63,10 @@ export const sharedService = {
     }
 
     try {
-      await fetch(`${API_URL}/friends`, {
+      await apiFetch('/shared/friends', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newFriend),
-      });
+        body: JSON.stringify(friendData),
+      }, userId);
     } catch (err) {
       console.warn('REST API addFriend error:', err);
     }
@@ -68,7 +80,7 @@ export const sharedService = {
     type: 'received' | 'paid',
     userId?: string
   ): Promise<{ settlement: SharedSettlement }> {
-    const newSettlement: SharedSettlement = {
+    const settlement: SharedSettlement = {
       id: `s-${Date.now()}`,
       friendName,
       amount,
@@ -78,22 +90,21 @@ export const sharedService = {
 
     if (db && userId && userId !== 'guest_user_demo') {
       try {
-        await addDoc(collection(db, `users/${userId}/settlements`), newSettlement);
+        await addDoc(collection(db, `users/${userId}/settlements`), settlement);
       } catch (err) {
         console.warn('Firestore recordSettlement error:', err);
       }
     }
 
     try {
-      await fetch(`${API_URL}/settle`, {
+      await apiFetch('/shared/settle', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friendName, amount, type }),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API recordSettlement error:', err);
     }
 
-    return { settlement: newSettlement };
+    return { settlement };
   },
 };

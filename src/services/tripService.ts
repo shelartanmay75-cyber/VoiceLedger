@@ -1,9 +1,9 @@
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
-import type { Trip, TripExpense } from '../types/featurePages';
+import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
+import type { Trip } from '../types/featurePages';
+import { apiFetch } from './apiClient';
 
 const COLLECTION_NAME = 'trips';
-const API_URL = '/api/trips';
 
 export const tripService = {
   async fetchTrips(userId?: string): Promise<Trip[]> {
@@ -17,12 +17,12 @@ export const tripService = {
           }));
         }
       } catch (err) {
-        console.warn('Firestore fetchTrips error:', err);
+        console.warn('Firestore fetchTrips error, falling back to REST API:', err);
       }
     }
 
     try {
-      const res = await fetch(API_URL);
+      const res = await apiFetch('/trips', {}, userId);
       if (res.ok) {
         return await res.json();
       }
@@ -51,11 +51,10 @@ export const tripService = {
     }
 
     try {
-      await fetch(API_URL, {
+      await apiFetch('/trips', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTrip),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API addTrip error:', err);
     }
@@ -63,27 +62,31 @@ export const tripService = {
     return newTrip;
   },
 
-  async addTripExpense(tripId: string, expenseData: Omit<TripExpense, 'id'>, existingTrip: Trip, userId?: string): Promise<Trip> {
-    const newExpense: TripExpense = {
-      ...expenseData,
+  async addTripExpense(
+    tripId: string,
+    expenseData: { description: string; amount: number; category: string; paidBy: string; date: string },
+    currentTrip: Trip,
+    userId?: string
+  ): Promise<Trip> {
+    const newExpense = {
       id: `te-${Date.now()}`,
+      ...expenseData,
     };
 
-    const updatedExpensesList = [...(existingTrip.expensesList || []), newExpense];
-    const updatedTotalSpent = updatedExpensesList.reduce((acc, curr) => acc + curr.amount, 0);
+    const updatedExpensesList = [...(currentTrip.expensesList || []), newExpense];
+    const newTotalSpent = updatedExpensesList.reduce((acc, curr) => acc + curr.amount, 0);
 
     const updatedTrip: Trip = {
-      ...existingTrip,
+      ...currentTrip,
       expensesList: updatedExpensesList,
-      totalSpent: updatedTotalSpent,
+      totalSpent: newTotalSpent,
     };
 
     if (db && userId && userId !== 'guest_user_demo') {
       try {
-        const tripRef = doc(db, `users/${userId}/${COLLECTION_NAME}`, tripId);
-        await updateDoc(tripRef, {
+        await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, tripId), {
           expensesList: updatedExpensesList,
-          totalSpent: updatedTotalSpent,
+          totalSpent: newTotalSpent,
         });
       } catch (err) {
         console.warn('Firestore addTripExpense error:', err);
@@ -91,11 +94,10 @@ export const tripService = {
     }
 
     try {
-      await fetch(`${API_URL}/${tripId}/expenses`, {
+      await apiFetch(`/trips/${tripId}/expenses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(expenseData),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API addTripExpense error:', err);
     }

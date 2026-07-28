@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: voiceledger-api
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: "*"

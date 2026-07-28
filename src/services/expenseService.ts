@@ -1,9 +1,9 @@
 import { db } from '../config/firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import type { Expense } from '../types/expense';
+import { apiFetch } from './apiClient';
 
 const COLLECTION_NAME = 'expenses';
-const API_URL = '/api/expenses';
 
 export const expenseService = {
   async fetchExpenses(userId?: string): Promise<Expense[]> {
@@ -23,9 +23,9 @@ export const expenseService = {
       }
     }
 
-    // 2. Fallback to Express REST API / LocalStorage
+    // 2. Fallback to Express REST API / Render backend
     try {
-      const res = await fetch(API_URL);
+      const res = await apiFetch('/expenses', {}, userId);
       if (res.ok) {
         return await res.json();
       }
@@ -54,11 +54,10 @@ export const expenseService = {
 
     // 2. Also save to REST API backend
     try {
-      await fetch(API_URL, {
+      await apiFetch('/expenses', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newExpense),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API addExpense error:', err);
     }
@@ -78,7 +77,7 @@ export const expenseService = {
 
     // 2. Delete from REST API backend
     try {
-      await fetch(`${API_URL}/${expenseId}`, { method: 'DELETE' });
+      await apiFetch(`/expenses/${expenseId}`, { method: 'DELETE' }, userId);
     } catch (err) {
       console.warn('REST API deleteExpense error:', err);
     }

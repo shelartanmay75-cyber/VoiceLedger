@@ -88,13 +88,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profileService.fetchProfile(userId),
       ]);
 
-      if (fetchedExpenses.length > 0) setExpenses(fetchedExpenses);
-      if (fetchedGoals.length > 0) setGoals(fetchedGoals);
-      if (fetchedSubs.length > 0) setSubscriptions(fetchedSubs);
-      if (fetchedTrips.length > 0) setTrips(fetchedTrips);
-      if (fetchedShared.friends.length > 0) setFriends(fetchedShared.friends);
-      if (fetchedShared.settlements.length > 0) setSettlements(fetchedShared.settlements);
-      if (fetchedProfile) setProfile((prev) => ({ ...prev, ...fetchedProfile }));
+      if (userId && userId !== 'guest_user_demo') {
+        // Authenticated Google user: Clean slate initialization so user records expenses from beginning
+        setExpenses(fetchedExpenses || []);
+        setGoals(fetchedGoals || []);
+        setSubscriptions(fetchedSubs || []);
+        setTrips(fetchedTrips || []);
+        setFriends(fetchedShared.friends || []);
+        setSettlements(fetchedShared.settlements || []);
+        if (fetchedProfile) {
+          setProfile((prev) => ({ ...prev, ...fetchedProfile }));
+        } else if (user) {
+          setProfile((prev) => ({
+            ...prev,
+            uid: user.uid,
+            displayName: user.displayName || 'User',
+            email: user.email || '',
+            photoURL: user.photoURL || prev.photoURL,
+          }));
+        }
+      } else {
+        // Guest Demo mode: Fallback to mock data preview
+        if (fetchedExpenses.length > 0) setExpenses(fetchedExpenses);
+        if (fetchedGoals.length > 0) setGoals(fetchedGoals);
+        if (fetchedSubs.length > 0) setSubscriptions(fetchedSubs);
+        if (fetchedTrips.length > 0) setTrips(fetchedTrips);
+        if (fetchedShared.friends.length > 0) setFriends(fetchedShared.friends);
+        if (fetchedShared.settlements.length > 0) setSettlements(fetchedShared.settlements);
+        if (fetchedProfile) setProfile((prev) => ({ ...prev, ...fetchedProfile }));
+      }
     } catch (err) {
       console.warn('Error loading backend data:', err);
     } finally {

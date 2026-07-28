@@ -1,9 +1,9 @@
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 import type { Subscription } from '../types/featurePages';
+import { apiFetch } from './apiClient';
 
 const COLLECTION_NAME = 'subscriptions';
-const API_URL = '/api/subscriptions';
 
 export const subscriptionService = {
   async fetchSubscriptions(userId?: string): Promise<Subscription[]> {
@@ -17,12 +17,12 @@ export const subscriptionService = {
           }));
         }
       } catch (err) {
-        console.warn('Firestore fetchSubscriptions error:', err);
+        console.warn('Firestore fetchSubscriptions error, falling back to REST API:', err);
       }
     }
 
     try {
-      const res = await fetch(API_URL);
+      const res = await apiFetch('/subscriptions', {}, userId);
       if (res.ok) {
         return await res.json();
       }
@@ -49,11 +49,10 @@ export const subscriptionService = {
     }
 
     try {
-      await fetch(API_URL, {
+      await apiFetch('/subscriptions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSub),
-      });
+      }, userId);
     } catch (err) {
       console.warn('REST API addSubscription error:', err);
     }
@@ -66,14 +65,18 @@ export const subscriptionService = {
 
     if (db && userId && userId !== 'guest_user_demo') {
       try {
-        await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, subId), { status: newStatus });
+        await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, subId), {
+          status: newStatus,
+        });
       } catch (err) {
         console.warn('Firestore toggleSubscriptionStatus error:', err);
       }
     }
 
     try {
-      await fetch(`${API_URL}/${subId}/toggle`, { method: 'PATCH' });
+      await apiFetch(`/subscriptions/${subId}/toggle`, {
+        method: 'PATCH',
+      }, userId);
     } catch (err) {
       console.warn('REST API toggleSubscriptionStatus error:', err);
     }
@@ -91,7 +94,7 @@ export const subscriptionService = {
     }
 
     try {
-      await fetch(`${API_URL}/${subId}`, { method: 'DELETE' });
+      await apiFetch(`/subscriptions/${subId}`, { method: 'DELETE' }, userId);
     } catch (err) {
       console.warn('REST API deleteSubscription error:', err);
     }
