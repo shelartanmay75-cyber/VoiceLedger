@@ -7,28 +7,45 @@ const COLLECTION_NAME = 'goals';
 
 export const goalsService = {
   async fetchGoals(userId?: string): Promise<SavingsGoal[]> {
+    const key = `voiceledger_goals_${userId || 'guest'}`;
+
     if (db && userId && userId !== 'guest_user_demo') {
       try {
-        const snapshot = await getDocs(collection(db, `users/${userId}/${COLLECTION_NAME}`));
+        const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1500));
+        const snapshot = await Promise.race([
+          getDocs(collection(db, `users/${userId}/${COLLECTION_NAME}`)),
+          timeoutPromise,
+        ]);
         if (!snapshot.empty) {
-          return snapshot.docs.map((docSnap) => ({
+          const list = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...(docSnap.data() as Omit<SavingsGoal, 'id'>),
           }));
+          localStorage.setItem(key, JSON.stringify(list));
+          return list;
         }
       } catch (err) {
-        console.warn('Firestore fetchGoals error, falling back to REST API:', err);
+        console.warn('Firestore fetchGoals notice:', err);
       }
     }
 
     try {
       const res = await apiFetch('/goals', {}, userId);
       if (res.ok) {
-        return await res.json();
+        const list = await res.json();
+        if (Array.isArray(list) && list.length > 0) {
+          localStorage.setItem(key, JSON.stringify(list));
+          return list;
+        }
       }
     } catch (err) {
-      console.warn('REST API fetchGoals error:', err);
+      console.warn('REST API fetchGoals notice:', err);
     }
+
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
 
     return [];
   },
@@ -39,66 +56,86 @@ export const goalsService = {
       id: `goal-${Date.now()}`,
     };
 
-    if (db && userId && userId !== 'guest_user_demo') {
-      try {
-        const docRef = await addDoc(collection(db, `users/${userId}/${COLLECTION_NAME}`), goalData);
-        newGoal.id = docRef.id;
-      } catch (err) {
-        console.warn('Firestore addGoal error:', err);
-      }
-    }
-
+    const key = `voiceledger_goals_${userId || 'guest'}`;
     try {
-      await apiFetch('/goals', {
-        method: 'POST',
-        body: JSON.stringify(newGoal),
-      }, userId);
-    } catch (err) {
-      console.warn('REST API addGoal error:', err);
-    }
+      const existing = localStorage.getItem(key);
+      const list: SavingsGoal[] = existing ? JSON.parse(existing) : [];
+      localStorage.setItem(key, JSON.stringify([newGoal, ...list]));
+    } catch (_) {}
+
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          await addDoc(collection(db, `users/${userId}/${COLLECTION_NAME}`), goalData);
+        } catch (_) {}
+      }
+
+      try {
+        await apiFetch('/goals', {
+          method: 'POST',
+          body: JSON.stringify(newGoal),
+        }, userId);
+      } catch (_) {}
+    })();
 
     return newGoal;
   },
 
   async depositToGoal(goalId: string, amount: number, currentAmount: number, userId?: string): Promise<number> {
     const newTotal = currentAmount + amount;
-
-    if (db && userId && userId !== 'guest_user_demo') {
-      try {
-        await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId), {
-          currentAmount: newTotal,
-        });
-      } catch (err) {
-        console.warn('Firestore depositToGoal error:', err);
-      }
-    }
+    const key = `voiceledger_goals_${userId || 'guest'}`;
 
     try {
-      await apiFetch(`/goals/${goalId}/deposit`, {
-        method: 'PATCH',
-        body: JSON.stringify({ amount }),
-      }, userId);
-    } catch (err) {
-      console.warn('REST API depositToGoal error:', err);
-    }
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: SavingsGoal[] = JSON.parse(existing);
+        const updated = list.map((g) => (g.id === goalId ? { ...g, currentAmount: newTotal } : g));
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+    } catch (_) {}
+
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId), {
+            currentAmount: newTotal,
+          });
+        } catch (_) {}
+      }
+
+      try {
+        await apiFetch(`/goals/${goalId}/deposit`, {
+          method: 'PATCH',
+          body: JSON.stringify({ amount }),
+        }, userId);
+      } catch (_) {}
+    })();
 
     return newTotal;
   },
 
   async deleteGoal(goalId: string, userId?: string): Promise<boolean> {
-    if (db && userId && userId !== 'guest_user_demo') {
-      try {
-        await deleteDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId));
-      } catch (err) {
-        console.warn('Firestore deleteGoal error:', err);
-      }
-    }
+    const key = `voiceledger_goals_${userId || 'guest'}`;
 
     try {
-      await apiFetch(`/goals/${goalId}`, { method: 'DELETE' }, userId);
-    } catch (err) {
-      console.warn('REST API deleteGoal error:', err);
-    }
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: SavingsGoal[] = JSON.parse(existing);
+        localStorage.setItem(key, JSON.stringify(list.filter((g) => g.id !== goalId)));
+      }
+    } catch (_) {}
+
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          await deleteDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId));
+        } catch (_) {}
+      }
+
+      try {
+        await apiFetch(`/goals/${goalId}`, { method: 'DELETE' }, userId);
+      } catch (_) {}
+    })();
 
     return true;
   },

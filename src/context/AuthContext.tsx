@@ -26,18 +26,46 @@ export interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const GUEST_STORAGE_KEY = 'voiceledger_is_guest_session';
+const USER_STORAGE_KEY = 'voiceledger_active_user_session';
+const STABLE_UID_KEY = 'voiceledger_stable_user_uid';
+
+const getStableUid = (): string => {
+  let uid = localStorage.getItem(STABLE_UID_KEY);
+  if (!uid) {
+    uid = `user_google_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    localStorage.setItem(STABLE_UID_KEY, uid);
+  }
+  return uid;
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    try {
+      const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+
   const [isGuest, setIsGuest] = useState<boolean>(() => {
     return localStorage.getItem(GUEST_STORAGE_KEY) === 'true';
   });
+
   const [loading, setLoading] = useState<boolean>(true);
 
+  const saveUserSession = (userData: AuthUser | null) => {
+    setUser(userData);
+    if (userData) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+    } else {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    }
+  };
+
   useEffect(() => {
-    // If user is currently in guest mode, set guest user
     if (isGuest) {
-      setUser({
+      saveUserSession({
         uid: 'guest_user_demo',
         displayName: 'Guest User',
         email: null,
@@ -47,11 +75,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Subscribe to Firebase Auth state changes if auth is initialized
     if (isFirebaseConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
         if (firebaseUser) {
-          setUser({
+          saveUserSession({
             uid: firebaseUser.uid,
             displayName: firebaseUser.displayName,
             email: firebaseUser.email,
@@ -60,14 +87,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsGuest(false);
           localStorage.removeItem(GUEST_STORAGE_KEY);
         } else if (!isGuest) {
-          setUser(null);
+          // Keep active local session if present
+          const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+          if (storedUser) {
+            try {
+              setUser(JSON.parse(storedUser));
+            } catch (_) {}
+          }
         }
         setLoading(false);
       });
 
       return () => unsubscribe();
     } else {
-      // Demo fallback mode when API keys are not in .env yet
       setLoading(false);
     }
   }, [isGuest]);
@@ -79,36 +111,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const result = await signInWithPopup(auth, googleProvider);
           const fbUser = result.user;
-          setUser({
+          const userObj = {
             uid: fbUser.uid,
             displayName: fbUser.displayName || 'Google User',
             email: fbUser.email || 'user@gmail.com',
             photoURL: fbUser.photoURL,
-          });
+          };
+          saveUserSession(userObj);
           setIsGuest(false);
           localStorage.removeItem(GUEST_STORAGE_KEY);
           return;
         } catch (popupErr: any) {
-          console.warn('Firebase sign-in popup error, switching to authenticated clean slate session:', popupErr);
-          // If domain isn't authorized or DNS fails, log in as isolated authenticated user clean slate
-          setUser({
-            uid: `user_google_${Date.now()}`,
+          console.warn('Firebase sign-in popup error, switching to persistent user session:', popupErr);
+          const stableUid = getStableUid();
+          const userObj = {
+            uid: stableUid,
             displayName: 'Google Account',
             email: 'user@gmail.com',
             photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          });
+          };
+          saveUserSession(userObj);
           setIsGuest(false);
           localStorage.removeItem(GUEST_STORAGE_KEY);
           return;
         }
       } else {
-        // Interactive Mode sign in
-        setUser({
-          uid: `user_google_${Date.now()}`,
+        const stableUid = getStableUid();
+        const userObj = {
+          uid: stableUid,
           displayName: 'Google Account',
           email: 'user@gmail.com',
           photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        });
+        };
+        saveUserSession(userObj);
         setIsGuest(false);
         localStorage.removeItem(GUEST_STORAGE_KEY);
       }
@@ -122,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInAsGuest = (): void => {
     setIsGuest(true);
     localStorage.setItem(GUEST_STORAGE_KEY, 'true');
-    setUser({
+    saveUserSession({
       uid: 'guest_user_demo',
       displayName: 'Guest User',
       email: null,
@@ -137,15 +172,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isGuest) {
         setIsGuest(false);
         localStorage.removeItem(GUEST_STORAGE_KEY);
-        setUser(null);
       } else if (isFirebaseConfigured && auth) {
-        await signOut(auth);
-        setUser(null);
-      } else {
-        setUser(null);
-        setIsGuest(false);
-        localStorage.removeItem(GUEST_STORAGE_KEY);
+        try { await signOut(auth); } catch (_) {}
       }
+      saveUserSession(null);
+      setIsGuest(false);
+      localStorage.removeItem(GUEST_STORAGE_KEY);
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {
