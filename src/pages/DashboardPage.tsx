@@ -12,12 +12,9 @@ import {
   Tv,
   ShoppingCart,
   Car,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
   Calendar,
   Wallet,
-  ArrowUpRight,
+  Inbox,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useData } from '../context/DataContext';
@@ -26,22 +23,88 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Button } from '../components/ui/Button';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import { VoiceRecorder } from '../components/voice/VoiceRecorder';
-import {
-  mockQuickStats,
-  mockAIInsights,
-} from '../data/mockDashboardData';
 
 export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
-  const { expenses, profile } = useData();
+  const { expenses, goals, profile } = useData();
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
 
-  // Dynamic spending calculation
+  // Dynamic spending calculations from real user expenses
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const monthlyBudget = profile.monthlyBudget || 40000;
   const remainingBudget = Math.max(0, monthlyBudget - totalSpent);
   const percentageUsed = Math.min(100, Math.round((totalSpent / monthlyBudget) * 100));
   const recentTransactions = expenses.slice(0, 5);
+
+  // Today's spending calculation
+  const todayIso = new Date().toISOString().split('T')[0];
+  const todaySpent = expenses
+    .filter((e) => e.isoDate === todayIso || e.date === 'Today')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  // Quick stats derived dynamically
+  const dynamicQuickStats = [
+    {
+      id: 'stat-1',
+      title: "Today's Spending",
+      value: `₹${todaySpent.toLocaleString('en-IN')}`,
+      change: todaySpent > 0 ? 'Today active' : 'Clean Slate',
+      isPositive: true,
+      iconName: 'CreditCard',
+    },
+    {
+      id: 'stat-2',
+      title: 'Total Spending',
+      value: `₹${totalSpent.toLocaleString('en-IN')}`,
+      change: `${percentageUsed}% of budget`,
+      isPositive: percentageUsed < 80,
+      iconName: 'TrendingDown',
+    },
+    {
+      id: 'stat-3',
+      title: 'Total Transactions',
+      value: `${expenses.length} items`,
+      change: expenses.length > 0 ? `${expenses.length} logged` : '0 entries',
+      isPositive: true,
+      iconName: 'Receipt',
+    },
+    {
+      id: 'stat-4',
+      title: 'Savings Goal',
+      value: goals.length > 0
+        ? `₹${goals[0].currentAmount.toLocaleString('en-IN')} / ₹${goals[0].targetAmount.toLocaleString('en-IN')}`
+        : '₹0 / ₹0',
+      change: goals.length > 0 ? `${Math.round((goals[0].currentAmount / goals[0].targetAmount) * 100)}% completed` : 'Clean Slate',
+      isPositive: true,
+      iconName: 'Target',
+    },
+  ];
+
+  // AI insights derived dynamically
+  const dynamicAIInsights = expenses.length > 0 ? [
+    {
+      id: 'insight-1',
+      title: 'Voice Ledger Synchronized',
+      description: `You have successfully recorded ${expenses.length} transaction(s) totaling ₹${totalSpent.toLocaleString('en-IN')}.`,
+      type: 'success' as const,
+      category: 'Overview',
+    },
+    {
+      id: 'insight-2',
+      title: 'Budget Health Indicator',
+      description: `You have used ${percentageUsed}% of your ₹${monthlyBudget.toLocaleString('en-IN')} monthly budget limit.`,
+      type: percentageUsed > 80 ? ('warning' as const) : ('info' as const),
+      category: 'Budgeting',
+    },
+  ] : [
+    {
+      id: 'insight-welcome',
+      title: 'AI Engine Ready',
+      description: 'Your voice ledger is ready! Click the microphone above and speak your expense to start building your ledger.',
+      type: 'info' as const,
+      category: 'Voice Assistant',
+    },
+  ];
 
   // Determine time-aware greeting
   const getGreeting = (): string => {
@@ -234,7 +297,7 @@ export const DashboardPage: React.FC = () => {
         {/* 4. QUICK STATS CARDS (4 COLS GRID)                            */}
         {/* ------------------------------------------------------------- */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {mockQuickStats.map((stat) => (
+          {dynamicQuickStats.map((stat) => (
             <Card key={stat.id} hoverable className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-slate-500 dark:text-[#9CA3AF]">
@@ -248,137 +311,121 @@ export const DashboardPage: React.FC = () => {
                 <p className="text-2xl font-extrabold text-slate-900 dark:text-[#F3F4F6]">
                   {stat.value}
                 </p>
-                <p
-                  className={`text-[11px] font-semibold ${
-                    stat.isPositive ? 'text-[#22C55E]' : 'text-[#EF4444]'
-                  }`}
-                >
-                  {stat.change}
-                </p>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400 dark:text-[#6B7280]">Current Ledger</span>
+                  <span className="font-bold text-[#22C55E]">
+                    {stat.change}
+                  </span>
+                </div>
               </div>
             </Card>
           ))}
         </div>
 
         {/* ------------------------------------------------------------- */}
-        {/* 5. AI INSIGHTS & RECENT TRANSACTIONS PREVIEW GRID              */}
+        {/* 5. AI INSIGHTS & RECENT TRANSACTIONS GRID                     */}
         {/* ------------------------------------------------------------- */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* AI Insights Section (5 cols) */}
-          <Card className="lg:col-span-5">
+          {/* AI Financial Insights */}
+          <Card className="lg:col-span-5 flex flex-col justify-between">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-[#3B82F6]" />
-                  AI Insights
+                  AI Financial Insights
                 </CardTitle>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#0B0F14] text-slate-500 dark:text-[#9CA3AF] border border-slate-200 dark:border-[#222934]">
-                  Automated Analysis
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/30">
+                  Real-time
                 </span>
               </div>
-              <CardDescription>Personalized financial patterns and alerts</CardDescription>
+              <CardDescription>Automated pattern detection & budget advice</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-3">
-              {mockAIInsights.map((insight) => (
+              {dynamicAIInsights.map((insight) => (
                 <div
                   key={insight.id}
-                  className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/60 border border-slate-200/80 dark:border-[#222934]/60 flex items-start gap-3 transition-colors hover:border-[#3B82F6]/30"
+                  className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/60 border border-slate-200/80 dark:border-[#222934]/60 space-y-1.5"
                 >
-                  <div className="mt-0.5 shrink-0">
-                    {insight.type === 'warning' && (
-                      <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
-                    )}
-                    {insight.type === 'success' && (
-                      <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
-                    )}
-                    {insight.type === 'info' && (
-                      <Info className="w-4 h-4 text-[#3B82F6]" />
-                    )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6]">
+                      {insight.title}
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-[#6B7280]">
+                      {insight.category}
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6]">
-                        {insight.title}
-                      </h4>
-                      <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-200 dark:bg-[#222934] text-slate-600 dark:text-[#9CA3AF]">
-                        {insight.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-[#9CA3AF] leading-relaxed">
-                      {insight.description}
-                    </p>
-                  </div>
+                  <p className="text-xs text-slate-600 dark:text-[#9CA3AF] leading-relaxed">
+                    {insight.description}
+                  </p>
                 </div>
               ))}
             </CardContent>
           </Card>
 
-          {/* Recent Transactions Preview (7 cols) */}
-          <Card className="lg:col-span-7">
+          {/* Recent Transactions List */}
+          <Card className="lg:col-span-7 flex flex-col justify-between">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Receipt className="w-5 h-5 text-[#3B82F6]" />
                   Recent Transactions
                 </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  rightIcon={<ArrowUpRight className="w-3.5 h-3.5" />}
-                  id="dashboard-view-all-tx-btn"
-                >
-                  View All
-                </Button>
+                <span className="text-xs font-semibold text-slate-500">
+                  {recentTransactions.length} items
+                </span>
               </div>
-              <CardDescription>Latest 5 recorded transactions</CardDescription>
+              <CardDescription>Your latest voice and manual expense records</CardDescription>
             </CardHeader>
 
             <CardContent>
-              <div className="space-y-2">
-                {recentTransactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/60 border border-slate-200/80 dark:border-[#222934]/60 flex items-center justify-between hover:border-[#3B82F6]/30 transition-all duration-200"
-                  >
-                    {/* Left: Icon, Title, and Category */}
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="p-2.5 rounded-xl bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] shrink-0">
-                        {getTxIcon(tx.iconName)}
-                      </div>
-
-                      <div className="flex flex-col overflow-hidden text-left">
-                        <span className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6] truncate">
-                          {tx.title}
-                        </span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span
-                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${tx.categoryColor || 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30'}`}
-                          >
-                            {tx.category}
+              {recentTransactions.length === 0 ? (
+                <div className="py-8 flex flex-col items-center justify-center text-center text-slate-400">
+                  <Inbox className="w-8 h-8 mb-2 opacity-40 text-[#3B82F6]" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Clean Slate — No Transactions Recorded</p>
+                  <p className="text-[11px] text-slate-400 max-w-xs mt-0.5">Use the microphone above to record your first expense!</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {recentTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/60 border border-slate-200/80 dark:border-[#222934]/60 flex items-center justify-between hover:border-[#3B82F6]/30 transition-all duration-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] shrink-0">
+                          {getTxIcon(tx.iconName || 'Receipt')}
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6]">
+                            {tx.title}
                           </span>
-                          <span className="text-[10px] text-slate-400 dark:text-[#6B7280]">
-                            {tx.date}
-                          </span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-slate-400 dark:text-[#6B7280]">
+                              {tx.category}
+                            </span>
+                            <span className="text-[9px] text-slate-500">
+                              • {tx.date}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Right: Amount */}
-                    <div className="text-right shrink-0">
-                      <span className="text-sm font-extrabold text-slate-900 dark:text-[#F3F4F6]">
-                        -₹{tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-sm font-extrabold text-slate-900 dark:text-[#F3F4F6]">
+                          -₹{tx.amount.toLocaleString('en-IN')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Shared Add Expense Modal Dialog */}
+      {/* Manual Add Expense Modal */}
       <AddExpenseModal
         isOpen={isAddExpenseModalOpen}
         onClose={() => setIsAddExpenseModalOpen(false)}

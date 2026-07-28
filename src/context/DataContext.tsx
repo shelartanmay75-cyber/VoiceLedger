@@ -64,13 +64,15 @@ const defaultProfile: UserProfile = {
 export const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [expenses, setExpenses] = useState<Expense[]>(mockExpensesList);
-  const [goals, setGoals] = useState<SavingsGoal[]>(mockSavingsGoals);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(mockSubscriptions);
-  const [trips, setTrips] = useState<Trip[]>(mockTrips);
-  const [friends, setFriends] = useState<SharedFriend[]>(mockSharedFriends);
-  const [settlements, setSettlements] = useState<SharedSettlement[]>(mockSettlements);
+  const { user, isGuest } = useAuth();
+  const isAuthenticated = Boolean(user && user.uid !== 'guest_user_demo' && !isGuest);
+
+  const [expenses, setExpenses] = useState<Expense[]>(() => (isAuthenticated ? [] : mockExpensesList));
+  const [goals, setGoals] = useState<SavingsGoal[]>(() => (isAuthenticated ? [] : mockSavingsGoals));
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isAuthenticated ? [] : mockSubscriptions));
+  const [trips, setTrips] = useState<Trip[]>(() => (isAuthenticated ? [] : mockTrips));
+  const [friends, setFriends] = useState<SharedFriend[]>(() => (isAuthenticated ? [] : mockSharedFriends));
+  const [settlements, setSettlements] = useState<SharedSettlement[]>(() => (isAuthenticated ? [] : mockSettlements));
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
