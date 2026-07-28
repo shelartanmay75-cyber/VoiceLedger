@@ -17,7 +17,9 @@ export const TripsPage: React.FC = () => {
   const [tripLocation, setTripLocation] = useState('');
   const [tripBudget, setTripBudget] = useState('');
   const [startDate, setStartDate] = useState('15 Nov 2026');
+  const [startDateIso, setStartDateIso] = useState('2026-11-15');
   const [endDate, setEndDate] = useState('20 Nov 2026');
+  const [endDateIso, setEndDateIso] = useState('2026-11-20');
 
   // New Trip Expense state
   const [expenseDesc, setExpenseDesc] = useState('');
@@ -226,9 +228,58 @@ export const TripsPage: React.FC = () => {
                 <Input label="Trip Title" placeholder="e.g. Goa Vacation, Manali Trek" value={tripTitle} onChange={(e) => setTripTitle(e.target.value)} required />
                 <Input label="Destination / Location" placeholder="e.g. Goa, India" value={tripLocation} onChange={(e) => setTripLocation(e.target.value)} />
                 <Input label="Total Budget (₹)" type="number" placeholder="35000" value={tripBudget} onChange={(e) => setTripBudget(e.target.value)} leftIcon={<IndianRupee className="w-4 h-4" />} required />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input label="Start Date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                  <Input label="End Date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">Start Date</label>
+                    <div className="relative flex items-center cursor-pointer" onClick={(e) => {
+                      const input = e.currentTarget.querySelector('input');
+                      if (input) {
+                        try { if ('showPicker' in input) (input as any).showPicker(); } catch (_) {}
+                      }
+                    }}>
+                      <Calendar className="w-3.5 h-3.5 absolute left-2.5 text-[#3B82F6] pointer-events-none" />
+                      <input
+                        type="date"
+                        value={startDateIso}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStartDateIso(val);
+                          if (val) {
+                            const d = new Date(val);
+                            const formatted = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                            setStartDate(formatted);
+                          }
+                        }}
+                        className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-xs font-semibold rounded-xl border border-slate-200 dark:border-[#222934] pl-8 pr-2 py-2 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">End Date</label>
+                    <div className="relative flex items-center cursor-pointer" onClick={(e) => {
+                      const input = e.currentTarget.querySelector('input');
+                      if (input) {
+                        try { if ('showPicker' in input) (input as any).showPicker(); } catch (_) {}
+                      }
+                    }}>
+                      <Calendar className="w-3.5 h-3.5 absolute left-2.5 text-[#3B82F6] pointer-events-none" />
+                      <input
+                        type="date"
+                        value={endDateIso}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEndDateIso(val);
+                          if (val) {
+                            const d = new Date(val);
+                            const formatted = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                            setEndDate(formatted);
+                          }
+                        }}
+                        className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-xs font-semibold rounded-xl border border-slate-200 dark:border-[#222934] pl-8 pr-2 py-2 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="pt-3 flex justify-end gap-2">
                   <Button type="button" variant="ghost" onClick={() => setIsAddTripModalOpen(false)}>Cancel</Button>

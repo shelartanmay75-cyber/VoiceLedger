@@ -33,6 +33,7 @@ export const ExpensesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<DateFilterOption>('all');
+  const [customDateIso, setCustomDateIso] = useState<string>('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('timeline');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,7 +53,22 @@ export const ExpensesPage: React.FC = () => {
         const matchesCategory =
           selectedCategory === 'all' || item.category === selectedCategory;
 
-        return matchesSearch && matchesCategory;
+        // Custom Calendar Date or Date Period Filter
+        let matchesDate = true;
+        if (customDateIso) {
+          matchesDate = item.isoDate === customDateIso;
+        } else if (dateFilter === 'today') {
+          const todayStr = new Date().toISOString().split('T')[0];
+          matchesDate = item.isoDate === todayStr;
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date(Date.now() - 7 * 86400000);
+          matchesDate = new Date(item.isoDate) >= weekAgo;
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(Date.now() - 30 * 86400000);
+          matchesDate = new Date(item.isoDate) >= monthAgo;
+        }
+
+        return matchesSearch && matchesCategory && matchesDate;
       })
       .sort((a, b) => {
         if (sortOption === 'newest') return new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime();
@@ -61,7 +77,7 @@ export const ExpensesPage: React.FC = () => {
         if (sortOption === 'lowest') return a.amount - b.amount;
         return 0;
       });
-  }, [searchQuery, selectedCategory, sortOption]);
+  }, [expenses, searchQuery, selectedCategory, dateFilter, customDateIso, sortOption]);
 
   // Group expenses day-wise
   const groupedExpenses = useMemo<DayGroup[]>(() => {
@@ -217,24 +233,67 @@ export const ExpensesPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Date Filter */}
+            {/* Date Period & Interactive Calendar Picker */}
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-slate-500 dark:text-[#9CA3AF]">
-                Date Period
-              </label>
-              <div className="relative flex items-center">
-                <CalendarIcon className="w-3.5 h-3.5 absolute left-3 text-slate-400 dark:text-[#6B7280] pointer-events-none" />
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value as DateFilterOption)}
-                  className="w-full bg-slate-50 dark:bg-[#0B0F14] text-slate-900 dark:text-[#F3F4F6] text-xs rounded-xl border border-slate-200 dark:border-[#222934] pl-8 pr-4 py-2 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
-                  id="expenses-date-filter-select"
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-[#9CA3AF]">
+                  Date Period
+                </label>
+                {customDateIso && (
+                  <button
+                    onClick={() => setCustomDateIso('')}
+                    className="text-[10px] text-[#3B82F6] hover:underline font-semibold"
+                  >
+                    Clear Calendar
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 flex items-center">
+                  <CalendarIcon className="w-3.5 h-3.5 absolute left-3 text-slate-400 dark:text-[#6B7280] pointer-events-none" />
+                  <select
+                    value={customDateIso ? 'custom' : dateFilter}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      if (val !== 'custom') {
+                        setCustomDateIso('');
+                        setDateFilter(val);
+                      }
+                    }}
+                    className="w-full bg-slate-50 dark:bg-[#0B0F14] text-slate-900 dark:text-[#F3F4F6] text-xs rounded-xl border border-slate-200 dark:border-[#222934] pl-8 pr-4 py-2 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
+                    id="expenses-date-filter-select"
+                  >
+                    <option value="all" className="bg-white dark:bg-[#151A21]">All Time</option>
+                    <option value="today" className="bg-white dark:bg-[#151A21]">Today</option>
+                    <option value="week" className="bg-white dark:bg-[#151A21]">This Week</option>
+                    <option value="month" className="bg-white dark:bg-[#151A21]">This Month</option>
+                    {customDateIso && <option value="custom" className="bg-white dark:bg-[#151A21]">Custom Date ({customDateIso})</option>}
+                  </select>
+                </div>
+
+                {/* Calendar Picker Trigger Input */}
+                <div
+                  className="relative flex items-center cursor-pointer shrink-0"
+                  title="Pick specific date from Calendar"
+                  onClick={(e) => {
+                    const input = e.currentTarget.querySelector('input');
+                    if (input) {
+                      try { if ('showPicker' in input) (input as any).showPicker(); } catch (_) {}
+                    }
+                  }}
                 >
-                  <option value="all" className="bg-white dark:bg-[#151A21]">All Time</option>
-                  <option value="today" className="bg-white dark:bg-[#151A21]">Today</option>
-                  <option value="week" className="bg-white dark:bg-[#151A21]">This Week</option>
-                  <option value="month" className="bg-white dark:bg-[#151A21]">This Month</option>
-                </select>
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-[#0B0F14] border border-slate-200 dark:border-[#222934] text-[#3B82F6] hover:bg-slate-100 dark:hover:bg-[#151A21] transition-colors">
+                    <CalendarIcon className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="date"
+                    value={customDateIso}
+                    onChange={(e) => {
+                      setCustomDateIso(e.target.value);
+                    }}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
 

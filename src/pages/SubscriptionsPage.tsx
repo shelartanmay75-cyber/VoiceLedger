@@ -30,6 +30,7 @@ export const SubscriptionsPage: React.FC = () => {
   const [subCost, setSubCost] = useState('');
   const [subFrequency, setSubFrequency] = useState<'Monthly' | 'Yearly'>('Monthly');
   const [nextRenewalDate, setNextRenewalDate] = useState('15 Aug 2026');
+  const [nextRenewalDateIso, setNextRenewalDateIso] = useState('2026-08-15');
 
   const handleCreateSub = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,7 +263,31 @@ export const SubscriptionsPage: React.FC = () => {
                   <button type="button" onClick={() => setSubFrequency('Monthly')} className={`px-3 py-1 text-xs rounded-xl border ${subFrequency === 'Monthly' ? 'bg-[#3B82F6] text-white border-[#3B82F6]' : 'text-slate-400 border-slate-200'}`}>Monthly</button>
                   <button type="button" onClick={() => setSubFrequency('Yearly')} className={`px-3 py-1 text-xs rounded-xl border ${subFrequency === 'Yearly' ? 'bg-[#3B82F6] text-white border-[#3B82F6]' : 'text-slate-400 border-slate-200'}`}>Yearly</button>
                 </div>
-                <Input label="Next Renewal Date" placeholder="e.g. 15 Aug 2026" value={nextRenewalDate} onChange={(e) => setNextRenewalDate(e.target.value)} />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-[#9CA3AF]">Next Renewal Date (Calendar Picker)</label>
+                  <div className="relative flex items-center cursor-pointer" onClick={(e) => {
+                    const input = e.currentTarget.querySelector('input');
+                    if (input) {
+                      try { if ('showPicker' in input) (input as any).showPicker(); } catch (_) {}
+                    }
+                  }}>
+                    <Calendar className="w-4 h-4 absolute left-3.5 text-[#3B82F6] pointer-events-none" />
+                    <input
+                      type="date"
+                      value={nextRenewalDateIso}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNextRenewalDateIso(val);
+                        if (val) {
+                          const d = new Date(val);
+                          const formatted = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                          setNextRenewalDate(formatted);
+                        }
+                      }}
+                      className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-xs sm:text-sm font-semibold rounded-xl border border-slate-200 dark:border-[#222934] pl-10 pr-4 py-2.5 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
+                    />
+                  </div>
+                </div>
                 <div className="pt-3 flex justify-end gap-2">
                   <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
                   <Button type="submit" variant="primary">Save Subscription</Button>
