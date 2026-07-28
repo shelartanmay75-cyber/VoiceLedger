@@ -34,6 +34,7 @@ const KNOWN_MERCHANTS: { [key: string]: string } = {
  */
 function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
   const lower = transcript.toLowerCase();
+  const currentYear = new Date().getFullYear();
 
   // 1. Extract Amount (e.g. ₹250, 250 rupees, rs 250, 250 rs, 4200)
   let amount = 0;
@@ -51,13 +52,19 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
   const dateMatch = transcript.match(monthRegex) || transcript.match(monthRegexAlt) || transcript.match(dateNumRegex);
 
   if (dateMatch && dateMatch[1]) {
-    date = dateMatch[1].trim();
+    const rawDate = dateMatch[1].trim();
+    // If year is missing in spoken date, append current ongoing year
+    const hasYear = /\b(19|20)\d{2}\b/.test(rawDate);
+    date = hasYear ? rawDate : `${rawDate} ${currentYear}`;
   } else if (lower.includes('yesterday')) {
     date = 'Yesterday';
   } else if (lower.includes('today')) {
     date = 'Today';
   } else if (lower.includes('tomorrow')) {
     date = 'Tomorrow';
+  } else {
+    // If user does not specifically mention any date, default to current date
+    date = 'Today';
   }
 
   // 3. Extract Payment Method
@@ -172,6 +179,7 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
  */
 export async function extractExpenseWithGemini(transcript: string): Promise<ExtractedExpense> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const currentYear = new Date().getFullYear();
 
   if (!transcript || transcript.trim().length === 0) {
     throw new Error('Transcript is empty');
@@ -187,15 +195,19 @@ export async function extractExpenseWithGemini(transcript: string): Promise<Extr
 
 Voice Transcript: "${transcript}"
 
+Current Ongoing Year: ${currentYear}
+
 Categories available:
 ${EXPENSE_CATEGORIES.map((c) => `- ${c}`).join('\n')}
 
 Instructions:
-1. Extract "title": The specific product or item purchased (e.g. "Burger", "Coffee", "Shoes", "Fuel", "Rent"). Do NOT put the store or merchant name as the title if an item is mentioned. For example: for "spent 250 rs on burger on macdonalds on 25 july", title MUST be "Burger".
-2. Extract "merchant": The store, restaurant, app, or vendor name (e.g. "McDonald's", "Starbucks", "Nike", "Amazon", "Uber"). For example: for "spent 250 rs on burger on macdonalds on 25 july", merchant MUST be "McDonald's". If unknown, use "Unknown".
+1. Extract "title": The specific product or item purchased (e.g. "Burger", "Coffee", "Shoes", "Fuel", "Rent"). Do NOT put the store or merchant name as the title if an item is mentioned. E.g. for "spent 250 rs on burger on macdonalds on 25 july", title MUST be "Burger".
+2. Extract "merchant": The store, restaurant, app, or vendor name (e.g. "McDonald's", "Starbucks", "Nike", "Amazon", "Uber"). E.g. for "spent 250 rs on burger on macdonalds on 25 july", merchant MUST be "McDonald's". If unknown, use "Unknown".
 3. Extract "amount": Numeric value only (e.g., 250, 4200). Convert currency words (rupees, rs, inr, $) to numbers.
 4. Extract "category": It MUST be EXACTLY ONE of the categories listed above.
-5. Extract "date": Extract any explicit date mentioned in the spoken transcript (e.g. "25 July", "25th July", "Yesterday", "25/07/2026"). If a specific date like "25 July" is spoken, extract it accurately as spoken or formatted (e.g. "25 July 2026" or "25 July"). Default to "Today" ONLY if no date at all is mentioned in transcript.
+5. Extract "date":
+   - If the user explicitly mentions a date without a year (e.g., "25 July" or "25th July"), ALWAYS append the ongoing year ${currentYear} (e.g., "25 July ${currentYear}").
+   - If the user DOES NOT specifically mention any date at all in the transcript, ALWAYS default to the current date of that time (i.e. "Today").
 6. Extract "paymentMethod": Payment method if mentioned (e.g., "UPI", "Credit Card", "Debit Card", "Cash", "Net Banking", "Unknown").
 7. Extract "notes": Any additional details if mentioned, otherwise "".
 
