@@ -7,11 +7,12 @@ const COLLECTION_NAME = 'expenses';
 
 export const expenseService = {
   async fetchExpenses(userId?: string): Promise<Expense[]> {
-    // 1. Try Firebase Firestore if configured & online
+    // 1. Try Firebase Firestore with timeout
     if (db && userId && userId !== 'guest_user_demo') {
       try {
+        const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
         const q = query(collection(db, `users/${userId}/${COLLECTION_NAME}`), orderBy('isoDate', 'desc'));
-        const snapshot = await getDocs(q);
+        const snapshot = await Promise.race([getDocs(q), timeoutPromise]);
         if (!snapshot.empty) {
           return snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
@@ -19,11 +20,11 @@ export const expenseService = {
           }));
         }
       } catch (err) {
-        console.warn('Firestore fetchExpenses error, falling back to REST API:', err);
+        console.warn('Firestore fetchExpenses timeout or error, trying REST API:', err);
       }
     }
 
-    // 2. Fallback to Express REST API / Render backend
+    // 2. Fallback to Express REST API / Backend
     try {
       const res = await apiFetch('/expenses', {}, userId);
       if (res.ok) {
@@ -42,45 +43,49 @@ export const expenseService = {
       id: `exp-${Date.now()}`,
     };
 
-    // 1. Try Firestore
-    if (db && userId && userId !== 'guest_user_demo') {
-      try {
-        const docRef = await addDoc(collection(db, `users/${userId}/${COLLECTION_NAME}`), expenseData);
-        newExpense.id = docRef.id;
-      } catch (err) {
-        console.warn('Firestore addExpense error:', err);
+    // Non-blocking background persistence so UI updates instantly (0ms delay)
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1500));
+          await Promise.race([
+            addDoc(collection(db, `users/${userId}/${COLLECTION_NAME}`), expenseData),
+            timeoutPromise,
+          ]);
+        } catch (err) {
+          console.warn('Background Firestore addExpense notice:', err);
+        }
       }
-    }
 
-    // 2. Also save to REST API backend
-    try {
-      await apiFetch('/expenses', {
-        method: 'POST',
-        body: JSON.stringify(newExpense),
-      }, userId);
-    } catch (err) {
-      console.warn('REST API addExpense error:', err);
-    }
+      try {
+        await apiFetch('/expenses', {
+          method: 'POST',
+          body: JSON.stringify(newExpense),
+        }, userId);
+      } catch (err) {
+        console.warn('Background REST API addExpense notice:', err);
+      }
+    })();
 
     return newExpense;
   },
 
   async deleteExpense(expenseId: string, userId?: string): Promise<boolean> {
-    // 1. Try Firestore
-    if (db && userId && userId !== 'guest_user_demo') {
-      try {
-        await deleteDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, expenseId));
-      } catch (err) {
-        console.warn('Firestore deleteExpense error:', err);
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          await deleteDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, expenseId));
+        } catch (err) {
+          console.warn('Background Firestore deleteExpense error:', err);
+        }
       }
-    }
 
-    // 2. Delete from REST API backend
-    try {
-      await apiFetch(`/expenses/${expenseId}`, { method: 'DELETE' }, userId);
-    } catch (err) {
-      console.warn('REST API deleteExpense error:', err);
-    }
+      try {
+        await apiFetch(`/expenses/${expenseId}`, { method: 'DELETE' }, userId);
+      } catch (err) {
+        console.warn('Background REST API deleteExpense error:', err);
+      }
+    })();
 
     return true;
   },

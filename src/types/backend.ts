@@ -9,6 +9,7 @@ export interface UserProfile {
   monthlyBudget: number;
   currency: string;
   theme: 'dark' | 'light';
+  hasConfiguredBudget?: boolean;
 }
 
 export interface AppStateData {

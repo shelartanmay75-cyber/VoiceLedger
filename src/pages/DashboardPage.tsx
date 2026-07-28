@@ -23,11 +23,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Button } from '../components/ui/Button';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import { VoiceRecorder } from '../components/voice/VoiceRecorder';
+import { MonthlyBudgetSetupModal } from '../components/modals/MonthlyBudgetSetupModal';
 
 export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
   const { expenses, goals, profile } = useData();
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(true);
+
+  const isNewUserBudgetNeeded = !isGuest && Boolean(user) && !profile.hasConfiguredBudget;
 
   // Dynamic spending calculations from real user expenses
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -429,6 +433,12 @@ export const DashboardPage: React.FC = () => {
       <AddExpenseModal
         isOpen={isAddExpenseModalOpen}
         onClose={() => setIsAddExpenseModalOpen(false)}
+      />
+
+      {/* New User Monthly Budget Setup Modal */}
+      <MonthlyBudgetSetupModal
+        isOpen={Boolean(isNewUserBudgetNeeded && isBudgetModalOpen)}
+        onClose={() => setIsBudgetModalOpen(false)}
       />
     </PageContainer>
   );
