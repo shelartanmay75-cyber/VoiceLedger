@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { useAuth } from '../hooks/useAuth';
+import { useData } from '../context/DataContext';
 import {
   UserCheck,
   Shield,
@@ -12,11 +14,32 @@ import {
   LogOut,
   Sparkles,
   CheckCircle2,
+  IndianRupee,
+  Save,
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { user, isGuest, logout } = useAuth();
+  const { profile, updateProfile } = useData();
   const navigate = useNavigate();
+
+  const [monthlyBudget, setMonthlyBudget] = useState(profile.monthlyBudget?.toString() || '40000');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handleSaveBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await updateProfile({ monthlyBudget: parseFloat(monthlyBudget) || 40000 });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      console.error('Error updating profile:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -157,14 +180,35 @@ export const ProfilePage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Session & Privacy Status Card */}
+          {/* Budget Settings & Session Security Card */}
           <Card hoverable>
             <CardHeader>
-              <CardTitle>Session Security</CardTitle>
-              <CardDescription>Authentication security and privacy mode</CardDescription>
+              <CardTitle>Budget Settings</CardTitle>
+              <CardDescription>Configure monthly spending limits & preferences</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/50 border border-slate-200/80 dark:border-[#222934]/60 space-y-2">
+              <form onSubmit={handleSaveBudget} className="space-y-3">
+                <Input
+                  label="Monthly Target Budget (₹)"
+                  type="number"
+                  placeholder="40000"
+                  value={monthlyBudget}
+                  onChange={(e) => setMonthlyBudget(e.target.value)}
+                  leftIcon={<IndianRupee className="w-4 h-4" />}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  fullWidth
+                  disabled={isSaving}
+                  leftIcon={<Save className="w-4 h-4" />}
+                >
+                  {isSaving ? 'Saving...' : saveSuccess ? 'Saved Successfully!' : 'Save Monthly Budget'}
+                </Button>
+              </form>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/50 border border-slate-200/80 dark:border-[#222934]/60 space-y-2 mt-4">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-[#F3F4F6]">
                   <Sparkles className="w-4 h-4 text-[#3B82F6]" />
                   <span>Voice Ledger Privacy Mode</span>

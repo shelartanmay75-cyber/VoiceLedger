@@ -4,6 +4,8 @@ import { X, Plus, Calendar, Tag, CreditCard, FileText, IndianRupee } from 'lucid
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { TOP_20_CATEGORIES, PAYMENT_METHODS } from '../../data/mockExpensesData';
+import { useData } from '../../context/DataContext';
+import type { PaymentMethod } from '../../types/expense';
 
 export interface AddExpenseModalProps {
   isOpen: boolean;
@@ -11,17 +13,46 @@ export interface AddExpenseModalProps {
 }
 
 export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClose }) => {
+  const { addExpense } = useData();
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(TOP_20_CATEGORIES[0]);
-  const [paymentMethod, setPaymentMethod] = useState<string>(PAYMENT_METHODS[0]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PAYMENT_METHODS[0]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Non-functional mock submit
-    onClose();
+    if (!title || !amount) return;
+
+    setIsSubmitting(true);
+    try {
+      const parsedAmount = parseFloat(amount);
+      const isoDate = new Date(date).toISOString();
+      const formattedDate = new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      await addExpense({
+        title,
+        amount: parsedAmount,
+        category,
+        paymentMethod,
+        date: formattedDate,
+        isoDate,
+        notes,
+        iconName: 'ShoppingBag',
+        categoryColor: 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30',
+      });
+
+      setTitle('');
+      setAmount('');
+      setNotes('');
+      onClose();
+    } catch (err) {
+      console.error('Error adding expense:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -146,7 +177,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClos
                       <CreditCard className="w-4 h-4 absolute left-3.5 text-slate-400 dark:text-[#6B7280] pointer-events-none" />
                       <select
                         value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                         className="w-full bg-slate-50 dark:bg-[#151A21] text-slate-900 dark:text-[#F3F4F6] text-xs rounded-xl border border-slate-200 dark:border-[#222934] pl-10 pr-4 py-2.5 outline-none focus:border-[#3B82F6]/50 focus:ring-2 focus:ring-[#3B82F6]/30 transition-all cursor-pointer"
                       >
                         {PAYMENT_METHODS.map((pm) => (
@@ -191,9 +222,10 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClos
                     type="submit"
                     variant="primary"
                     size="md"
+                    disabled={isSubmitting}
                     id="add-expense-modal-save-btn"
                   >
-                    Save Expense
+                    {isSubmitting ? 'Saving...' : 'Save Expense'}
                   </Button>
                 </div>
               </form>

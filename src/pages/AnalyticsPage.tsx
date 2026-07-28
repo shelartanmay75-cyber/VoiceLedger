@@ -15,9 +15,12 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { useData } from '../context/DataContext';
 import { mockAnalyticsData } from '../data/mockFeatureData';
 
 export const AnalyticsPage: React.FC = () => {
+  const { expenses } = useData();
+
   const getMerchantIcon = (iconName: string) => {
     switch (iconName) {
       case 'ShoppingCart':
@@ -34,6 +37,23 @@ export const AnalyticsPage: React.FC = () => {
         return <ShoppingBag className="w-4 h-4 text-[#3B82F6]" />;
     }
   };
+
+  // Dynamic calculations from expenses
+  const totalAnalyticsSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+
+  const categoryTotals: { [key: string]: number } = {};
+  expenses.forEach((item) => {
+    categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.amount;
+  });
+
+  const colors = ['#22C55E', '#F97316', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#06B6D4'];
+
+  const dynamicCategories = Object.keys(categoryTotals).map((cat, idx) => ({
+    category: cat,
+    amount: categoryTotals[cat],
+    percentage: totalAnalyticsSpent > 0 ? Math.round((categoryTotals[cat] / totalAnalyticsSpent) * 100) : 0,
+    color: colors[idx % colors.length],
+  }));
 
   const maxMonthlyAmount = Math.max(...mockAnalyticsData.monthlyData.map((d) => d.budget));
   const maxWeeklyAmount = Math.max(...mockAnalyticsData.weeklyData.map((d) => d.amount));
@@ -183,7 +203,7 @@ export const AnalyticsPage: React.FC = () => {
                   <div className="text-center z-10 space-y-0.5">
                     <span className="text-xs text-slate-400 dark:text-[#6B7280]">Total</span>
                     <p className="text-base font-extrabold text-slate-900 dark:text-[#F3F4F6]">
-                      ₹24,500
+                      ₹{totalAnalyticsSpent.toLocaleString('en-IN')}
                     </p>
                   </div>
                 </div>
@@ -191,7 +211,7 @@ export const AnalyticsPage: React.FC = () => {
 
               {/* Category Legend List */}
               <div className="space-y-2">
-                {mockAnalyticsData.categoryDistribution.map((item) => (
+                {dynamicCategories.map((item) => (
                   <div key={item.category} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />

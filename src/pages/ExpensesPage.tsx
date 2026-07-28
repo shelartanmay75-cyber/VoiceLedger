@@ -18,7 +18,8 @@ import { ExpenseCard } from '../components/expenses/ExpenseCard';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import { EmptyState } from '../components/expenses/EmptyState';
 import { ExpenseSkeleton } from '../components/expenses/ExpenseSkeleton';
-import { mockExpensesList, TOP_20_CATEGORIES } from '../data/mockExpensesData';
+import { TOP_20_CATEGORIES } from '../data/mockExpensesData';
+import { useData } from '../context/DataContext';
 import type { Expense, ViewMode, SortOption, DateFilterOption } from '../types/expense';
 
 interface DayGroup {
@@ -28,6 +29,7 @@ interface DayGroup {
 }
 
 export const ExpensesPage: React.FC = () => {
+  const { expenses } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<DateFilterOption>('all');
@@ -38,7 +40,7 @@ export const ExpensesPage: React.FC = () => {
 
   // Filter and Sort Logic
   const filteredExpenses = useMemo(() => {
-    return mockExpensesList
+    return (expenses || [])
       .filter((item) => {
         // Search query filter
         const matchesSearch =

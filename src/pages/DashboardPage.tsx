@@ -21,20 +21,27 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useData } from '../context/DataContext';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import {
-  mockMonthlyBudget,
   mockQuickStats,
   mockAIInsights,
-  mockRecentTransactions,
 } from '../data/mockDashboardData';
 
 export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
+  const { expenses, profile } = useData();
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
+
+  // Dynamic spending calculation
+  const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const monthlyBudget = profile.monthlyBudget || 40000;
+  const remainingBudget = Math.max(0, monthlyBudget - totalSpent);
+  const percentageUsed = Math.min(100, Math.round((totalSpent / monthlyBudget) * 100));
+  const recentTransactions = expenses.slice(0, 5);
 
   // Determine time-aware greeting
   const getGreeting = (): string => {
@@ -222,19 +229,19 @@ export const DashboardPage: React.FC = () => {
               <div>
                 <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Total Spent</span>
                 <p className="text-2xl font-extrabold text-slate-900 dark:text-[#F3F4F6] mt-0.5">
-                  ₹{mockMonthlyBudget.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹{totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div>
                 <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Monthly Budget</span>
                 <p className="text-2xl font-extrabold text-slate-900 dark:text-[#F3F4F6] mt-0.5">
-                  ₹{mockMonthlyBudget.monthlyBudget.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹{monthlyBudget.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div>
                 <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Remaining Budget</span>
                 <p className="text-2xl font-extrabold text-[#22C55E] mt-0.5">
-                  ₹{mockMonthlyBudget.remainingBudget.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹{remainingBudget.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
@@ -246,14 +253,14 @@ export const DashboardPage: React.FC = () => {
                   Budget Allocation Progress
                 </span>
                 <span className="font-bold text-[#3B82F6]">
-                  {mockMonthlyBudget.percentageUsed}% used
+                  {percentageUsed}% used
                 </span>
               </div>
 
               <div className="w-full h-3.5 bg-slate-200 dark:bg-[#222934] rounded-full overflow-hidden p-0.5">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${mockMonthlyBudget.percentageUsed}%` }}
+                  animate={{ width: `${percentageUsed}%` }}
                   transition={{ duration: 1, ease: 'easeOut' }}
                   className="h-full bg-gradient-to-r from-[#2563EB] via-[#3B82F6] to-[#60A5FA] rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                 />
@@ -261,10 +268,10 @@ export const DashboardPage: React.FC = () => {
 
               <div className="flex items-center justify-between text-xs pt-1">
                 <span className="text-slate-500 dark:text-[#9CA3AF]">
-                  Safe Daily Spend Allowance: ₹516 / day
+                  Safe Daily Spend Allowance: ₹{Math.round(remainingBudget / 30)} / day
                 </span>
                 <span className="font-bold text-[#22C55E]">
-                  ₹{mockMonthlyBudget.remainingBudget.toLocaleString('en-IN', { minimumFractionDigits: 2 })} left
+                  ₹{remainingBudget.toLocaleString('en-IN', { minimumFractionDigits: 2 })} left
                 </span>
               </div>
             </div>
@@ -377,7 +384,7 @@ export const DashboardPage: React.FC = () => {
 
             <CardContent>
               <div className="space-y-2">
-                {mockRecentTransactions.map((tx) => (
+                {recentTransactions.map((tx) => (
                   <div
                     key={tx.id}
                     className="p-3 rounded-xl bg-slate-50 dark:bg-[#0B0F14]/60 border border-slate-200/80 dark:border-[#222934]/60 flex items-center justify-between hover:border-[#3B82F6]/30 transition-all duration-200"
@@ -390,11 +397,11 @@ export const DashboardPage: React.FC = () => {
 
                       <div className="flex flex-col overflow-hidden text-left">
                         <span className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6] truncate">
-                          {tx.merchant}
+                          {tx.title}
                         </span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span
-                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${tx.categoryBadgeColor}`}
+                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${tx.categoryColor || 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30'}`}
                           >
                             {tx.category}
                           </span>
