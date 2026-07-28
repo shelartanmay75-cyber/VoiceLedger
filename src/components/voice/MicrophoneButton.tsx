@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Mic, Square } from 'lucide-react';
+import { Mic, Square, RotateCcw } from 'lucide-react';
 import type { RecordingState } from '../../types/voice';
 
 export interface MicrophoneButtonProps {
   state: RecordingState;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onReRecord?: () => void;
   disabled?: boolean;
 }
 
@@ -14,6 +15,7 @@ export const MicrophoneButton: React.FC<MicrophoneButtonProps> = ({
   state,
   onStartRecording,
   onStopRecording,
+  onReRecord,
   disabled = false,
 }) => {
   const isListening = state === 'Listening';
@@ -29,7 +31,7 @@ export const MicrophoneButton: React.FC<MicrophoneButtonProps> = ({
   };
 
   return (
-    <div className="relative flex items-center justify-center py-4">
+    <div className="relative flex flex-col items-center justify-center py-4 space-y-3">
       {/* Outer Animated Aura Pulsing Rings (Active during Listening) */}
       {isListening && (
         <>
@@ -71,7 +73,7 @@ export const MicrophoneButton: React.FC<MicrophoneButtonProps> = ({
             <div className="flex flex-col items-center gap-1">
               <Square className="w-10 h-10 sm:w-12 sm:h-12 text-[#EF4444] fill-[#EF4444] animate-pulse" />
               <span className="text-[10px] font-extrabold text-[#EF4444] uppercase tracking-wider">
-                Stop
+                Stop & Process
               </span>
             </div>
           ) : (
@@ -84,6 +86,21 @@ export const MicrophoneButton: React.FC<MicrophoneButtonProps> = ({
           )}
         </div>
       </motion.button>
+
+      {/* Re-record / Start Over Button while Listening */}
+      {isListening && onReRecord && (
+        <motion.button
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          type="button"
+          onClick={onReRecord}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#151A21] hover:bg-slate-200 dark:hover:bg-[#222934] text-xs font-bold text-slate-700 dark:text-[#D1D5DB] border border-slate-200 dark:border-[#222934] shadow-sm transition-all cursor-pointer z-10"
+          id="voice-mic-rerecord-btn"
+        >
+          <RotateCcw className="w-3.5 h-3.5 text-[#3B82F6]" />
+          Re-record / Start Over
+        </motion.button>
+      )}
     </div>
   );
 };

@@ -10,6 +10,18 @@
   },
   "expenses": [
     {
+      "id": "exp-1785210620893",
+      "title": "Expense",
+      "amount": 500,
+      "category": "Transportation",
+      "paymentMethod": "Unknown",
+      "date": "Today",
+      "isoDate": "2026-07-28",
+      "notes": "Voice transcript: \"spend a 500 rupees for bus\"",
+      "iconName": "ShoppingBag",
+      "categoryColor": "bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30"
+    },
+    {
       "id": "exp-1785209273103",
       "title": "Pizza",
       "amount": 300,

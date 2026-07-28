@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Plus,
   Loader2,
+  Mic,
 } from 'lucide-react';
 import type { ExtractedExpense } from '../../types/voice';
 import { EditableField } from './EditableField';
@@ -23,6 +24,7 @@ export interface ExpenseReviewCardProps {
   onUpdateExpense: (updated: ExtractedExpense) => void;
   onSaveExpense: (expense: ExtractedExpense) => void;
   onReset: () => void;
+  onReRecord?: () => void;
   isSaving?: boolean;
 }
 
@@ -66,6 +68,7 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
   onUpdateExpense,
   onSaveExpense,
   onReset,
+  onReRecord,
   isSaving = false,
 }) => {
   const handleChange = (field: keyof ExtractedExpense, value: string | number) => {
@@ -104,15 +107,28 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
           </div>
         </div>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onReset}
-          leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-          id="expense-review-record-another-btn"
-        >
-          Record Another
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {onReRecord && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onReRecord}
+              leftIcon={<Mic className="w-3.5 h-3.5 text-[#3B82F6]" />}
+              id="expense-review-rerecord-btn-header"
+            >
+              Re-speak / Re-record
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onReset}
+            leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
+            id="expense-review-record-another-btn"
+          >
+            Reset Card
+          </Button>
+        </div>
       </div>
 
       {/* Form Fields Grid */}
@@ -218,16 +234,30 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
 
       {/* Action Footer Buttons */}
       <div className="pt-4 border-t border-slate-200 dark:border-[#222934] flex flex-col sm:flex-row items-center justify-between gap-3">
-        <Button
-          variant="secondary"
-          size="md"
-          onClick={onReset}
-          leftIcon={<RotateCcw className="w-4 h-4" />}
-          className="w-full sm:w-auto"
-          id="expense-review-record-another-btn-footer"
-        >
-          Record Another / Reset
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {onReRecord && (
+            <Button
+              variant="outline"
+              size="md"
+              onClick={onReRecord}
+              leftIcon={<Mic className="w-4 h-4 text-[#3B82F6]" />}
+              className="w-full sm:w-auto"
+              id="expense-review-rerecord-btn-footer"
+            >
+              Re-speak / Re-record
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={onReset}
+            leftIcon={<RotateCcw className="w-4 h-4" />}
+            className="w-full sm:w-auto"
+            id="expense-review-record-another-btn-footer"
+          >
+            Reset
+          </Button>
+        </div>
 
         <Button
           variant="primary"

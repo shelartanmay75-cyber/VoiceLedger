@@ -205,6 +205,22 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
     }
   };
 
+  // Re-record / Re-speak Action: Clears transcript & buffer and starts recording fresh immediately
+  const handleReRecord = async () => {
+    stopTimer();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (_) {}
+    }
+    setTranscript('');
+    setExpenseData(null);
+    setTimerSeconds(0);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    await startRecording();
+  };
+
   // Reset Voice Recorder state to Idle
   const handleReset = () => {
     stopTimer();
@@ -285,6 +301,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
           state={state}
           onStartRecording={startRecording}
           onStopRecording={stopRecording}
+          onReRecord={handleReRecord}
         />
       )}
 
@@ -305,6 +322,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
             onUpdateExpense={(updated) => setExpenseData(updated)}
             onSaveExpense={handleSaveExpense}
             onReset={handleReset}
+            onReRecord={handleReRecord}
             isSaving={isSaving}
           />
         )}
