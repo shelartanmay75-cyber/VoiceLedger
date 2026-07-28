@@ -18,8 +18,8 @@ import {
   Shield,
   ChevronUp,
 } from 'lucide-react';
-import type { NavItem } from '../../types/navigation';
 import { useAuth } from '../../hooks/useAuth';
+import { useData } from '../../context/DataContext';
 
 export interface SidebarProps {
   isMobileOpen: boolean;
@@ -27,17 +27,6 @@ export interface SidebarProps {
   isTabletCollapsed: boolean;
   onToggleTabletCollapse: () => void;
 }
-
-const navItems: NavItem[] = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Expenses', path: '/expenses', icon: Receipt, badge: '12' },
-  { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-  { name: 'Goals', path: '/goals', icon: Target },
-  { name: 'Trips', path: '/trips', icon: Plane, badge: 'New' },
-  { name: 'Shared Expenses', path: '/shared-expenses', icon: Users },
-  { name: 'Subscriptions', path: '/subscriptions', icon: CalendarClock, badge: '5' },
-  { name: 'Settings', path: '/settings', icon: Settings },
-];
 
 export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
@@ -48,6 +37,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isGuest } = useAuth();
+  const { expenses, subscriptions, goals, trips } = useData();
+
+  // Dynamic Navigation Items
+  const dynamicNavItems = [
+    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    {
+      name: 'Expenses',
+      path: '/expenses',
+      icon: Receipt,
+      badge: expenses.length > 0 ? String(expenses.length) : undefined,
+    },
+    { name: 'Analytics', path: '/analytics', icon: BarChart3 },
+    {
+      name: 'Goals',
+      path: '/goals',
+      icon: Target,
+      badge: goals.length > 0 ? String(goals.length) : undefined,
+    },
+    {
+      name: 'Trips',
+      path: '/trips',
+      icon: Plane,
+      badge: trips.length > 0 ? String(trips.length) : undefined,
+    },
+    { name: 'Shared Expenses', path: '/shared-expenses', icon: Users },
+    {
+      name: 'Subscriptions',
+      path: '/subscriptions',
+      icon: CalendarClock,
+      badge: subscriptions.length > 0 ? String(subscriptions.length) : undefined,
+    },
+    { name: 'Settings', path: '/settings', icon: Settings },
+  ];
 
   const getUserInitials = (name: string | null): string => {
     if (!name) return 'U';
@@ -60,7 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const renderNavLinks = (collapsed: boolean = false) => (
     <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
-      {navItems.map((item) => {
+      {dynamicNavItems.map((item) => {
         const Icon = item.icon;
         const isActive = location.pathname === item.path;
 
@@ -152,7 +174,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
-            {/* Avatar with Online Status Dot */}
             <div className="relative shrink-0">
               {user?.photoURL ? (
                 <img
@@ -169,14 +190,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
               )}
-              {/* Online Status Green Indicator */}
               <span
                 className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#22C55E] ring-2 ring-white dark:ring-[#0B0F14]"
                 title="Online Status: Active"
               />
             </div>
 
-            {/* Name, Email, and Account Type Badge */}
             <div className="flex flex-col overflow-hidden text-left">
               <span className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6] truncate group-hover:text-[#3B82F6] transition-colors">
                 {user?.displayName || (isGuest ? 'Guest User' : 'Authenticated User')}
@@ -207,13 +226,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Permanent / Collapsible Sidebar */}
       <aside
         className={`hidden md:flex flex-col bg-slate-50 dark:bg-[#0B0F14] border-r border-slate-200 dark:border-[#222934] h-[calc(100vh-4rem)] sticky top-16 transition-all duration-300 z-20 select-none ${
           isTabletCollapsed ? 'w-20' : 'w-64'
         }`}
       >
-        {/* Sidebar Header */}
         <div
           className={`px-4 py-3 border-b border-slate-200/80 dark:border-[#222934]/60 flex items-center ${
             isTabletCollapsed ? 'justify-center' : 'justify-between'
@@ -238,20 +255,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        {/* Navigation Links */}
         {renderNavLinks(isTabletCollapsed)}
 
-        {/* Sidebar Bottom: User Profile Card */}
         <div className="p-3 border-t border-slate-200 dark:border-[#222934]">
           {renderUserProfileCard(isTabletCollapsed)}
         </div>
       </aside>
 
-      {/* Mobile Drawer Navigation */}
       <AnimatePresence>
         {isMobileOpen && (
           <>
-            {/* Backdrop Blur Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -261,7 +274,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="fixed inset-0 bg-slate-900/40 dark:bg-[#0B0F14]/80 backdrop-blur-md z-40 md:hidden"
             />
 
-            {/* Mobile Drawer Panel */}
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
@@ -269,7 +281,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
               className="fixed top-0 left-0 bottom-0 w-72 bg-slate-50 dark:bg-[#0B0F14] border-r border-slate-200 dark:border-[#222934] z-50 flex flex-col md:hidden shadow-2xl"
             >
-              {/* Drawer Header */}
               <div className="h-16 px-4 border-b border-slate-200 dark:border-[#222934] flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-[#3B82F6] p-0.5 flex items-center justify-center">
@@ -289,10 +300,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
 
-              {/* Navigation links */}
               {renderNavLinks(false)}
 
-              {/* Mobile Drawer Footer: User Profile Card */}
               <div className="p-3 border-t border-slate-200 dark:border-[#222934] bg-slate-100/50 dark:bg-[#151A21]/50">
                 {renderUserProfileCard(false)}
               </div>

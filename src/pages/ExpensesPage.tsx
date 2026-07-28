@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
+  Plus,
   Search,
   Filter,
-  Plus,
   ArrowUpDown,
   LayoutGrid,
   List,
-  Calendar as CalendarIcon,
   RefreshCw,
   Clock,
+  Calendar as CalendarIcon,
+  X,
+  Check,
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/ui/Card';
@@ -16,132 +19,199 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { ExpenseCard } from '../components/expenses/ExpenseCard';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
-import { EmptyState } from '../components/expenses/EmptyState';
 import { ExpenseSkeleton } from '../components/expenses/ExpenseSkeleton';
-import { TOP_20_CATEGORIES } from '../data/mockExpensesData';
+import { EmptyState } from '../components/expenses/EmptyState';
 import { useData } from '../context/DataContext';
-import type { Expense, ViewMode, SortOption, DateFilterOption } from '../types/expense';
+import type { Expense, SortOption } from '../types/expense';
 
-interface DayGroup {
-  dateTitle: string;
-  items: Expense[];
-  subtotal: number;
-}
+const TOP_20_CATEGORIES = [
+  'Transportation',
+  'Food & Beverages',
+  'Shopping',
+  'Utilities',
+  'Housing & Rent',
+  'Healthcare',
+  'Education',
+  'Entertainment',
+  'Travel',
+  'Work & Business',
+  'Fitness & Sports',
+  'Bills & Subscriptions',
+  'Gifts & Donations',
+  'Pets',
+  'Family & Kids',
+  'Personal Care',
+  'Investments & Savings',
+  'Taxes & Fees',
+  'Income / Refund',
+  'Miscellaneous',
+];
 
 export const ExpensesPage: React.FC = () => {
-  const { expenses } = useData();
+  const { expenses, deleteExpense, addExpense } = useData();
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  // Edit Form state
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editMethod, setEditMethod] = useState('');
+  const [editDate, setEditDate] = useState('');
+
+  // Filter & Search States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<DateFilterOption>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [customDateIso, setCustomDateIso] = useState<string>('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
-  const [viewMode, setViewMode] = useState<ViewMode>('timeline');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'timeline'>('timeline');
 
-  // Filter and Sort Logic
+  // Loading state simulation
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const handleSimulateLoading = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 600);
+  };
+
+  const openEditModal = (exp: Expense) => {
+    setEditingExpense(exp);
+    setEditTitle(exp.title);
+    setEditAmount(exp.amount.toString());
+    setEditCategory(exp.category);
+    setEditMethod(exp.paymentMethod);
+    setEditDate(exp.isoDate || new Date().toISOString().split('T')[0]);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !editTitle || !editAmount) return;
+
+    // Remove old expense and add updated expense
+    await deleteExpense(editingExpense.id);
+    await addExpense({
+      title: editTitle,
+      amount: parseFloat(editAmount),
+      category: editCategory,
+      paymentMethod: editMethod as Expense['paymentMethod'],
+      date: editDate === new Date().toISOString().split('T')[0] ? 'Today' : editDate,
+      isoDate: editDate,
+      notes: editingExpense.notes || '',
+      iconName: editingExpense.iconName || 'Tag',
+      categoryColor: editingExpense.categoryColor || 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30',
+    });
+
+    setEditingExpense(null);
+  };
+
+  // Filtered expenses list
   const filteredExpenses = useMemo(() => {
-    return (expenses || [])
-      .filter((item) => {
+    return expenses
+      .filter((expense) => {
         // Search query filter
         const matchesSearch =
-          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (item.notes && item.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+          expense.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (expense.notes && expense.notes.toLowerCase().includes(searchQuery.toLowerCase()));
 
         // Category filter
         const matchesCategory =
-          selectedCategory === 'all' || item.category === selectedCategory;
+          selectedCategory === 'all' || expense.category === selectedCategory;
 
-        // Custom Calendar Date or Date Period Filter
-        let matchesDate = true;
+        // Custom Date calendar filter
         if (customDateIso) {
-          matchesDate = item.isoDate === customDateIso;
-        } else if (dateFilter === 'today') {
-          const todayStr = new Date().toISOString().split('T')[0];
-          matchesDate = item.isoDate === todayStr;
-        } else if (dateFilter === 'week') {
-          const weekAgo = new Date(Date.now() - 7 * 86400000);
-          matchesDate = new Date(item.isoDate) >= weekAgo;
-        } else if (dateFilter === 'month') {
-          const monthAgo = new Date(Date.now() - 30 * 86400000);
-          matchesDate = new Date(item.isoDate) >= monthAgo;
+          if (expense.isoDate !== customDateIso) return false;
+        }
+
+        // Quick Date period filter
+        let matchesDate = true;
+        if (!customDateIso && dateFilter !== 'all') {
+          const expenseDate = new Date(expense.isoDate || expense.date);
+          const now = new Date();
+          if (dateFilter === 'today') {
+            matchesDate = expense.date.toLowerCase() === 'today' || expenseDate.toDateString() === now.toDateString();
+          } else if (dateFilter === 'week') {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(now.getDate() - 7);
+            matchesDate = expenseDate >= sevenDaysAgo;
+          } else if (dateFilter === 'month') {
+            matchesDate =
+              expenseDate.getMonth() === now.getMonth() &&
+              expenseDate.getFullYear() === now.getFullYear();
+          }
         }
 
         return matchesSearch && matchesCategory && matchesDate;
       })
       .sort((a, b) => {
-        if (sortOption === 'newest') return new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime();
-        if (sortOption === 'oldest') return new Date(a.isoDate).getTime() - new Date(b.isoDate).getTime();
-        if (sortOption === 'highest') return b.amount - a.amount;
-        if (sortOption === 'lowest') return a.amount - b.amount;
+        if (sortOption === 'newest') {
+          return new Date(b.isoDate || b.date).getTime() - new Date(a.isoDate || a.date).getTime();
+        }
+        if (sortOption === 'oldest') {
+          return new Date(a.isoDate || a.date).getTime() - new Date(b.isoDate || b.date).getTime();
+        }
+        if (sortOption === 'highest') {
+          return b.amount - a.amount;
+        }
+        if (sortOption === 'lowest') {
+          return a.amount - b.amount;
+        }
         return 0;
       });
   }, [expenses, searchQuery, selectedCategory, dateFilter, customDateIso, sortOption]);
 
-  // Group expenses day-wise
-  const groupedExpenses = useMemo<DayGroup[]>(() => {
-    const groupsMap: { [key: string]: DayGroup } = {};
+  // Group expenses day-wise for segregated display
+  const groupedExpenses = useMemo(() => {
+    const groups: { [date: string]: { dateTitle: string; items: Expense[]; subtotal: number } } = {};
 
-    filteredExpenses.forEach((item) => {
-      let dateTitle = item.date.split(',')[0].trim();
-      if (dateTitle === 'Today') {
-        dateTitle = 'Today';
-      } else if (dateTitle === 'Yesterday') {
-        dateTitle = 'Yesterday';
-      } else {
-        const parsedDate = new Date(item.isoDate);
-        if (!isNaN(parsedDate.getTime())) {
-          const day = parsedDate.getDate();
-          const month = parsedDate.toLocaleString('en-IN', { month: 'long' });
-          const year = parsedDate.getFullYear();
-          dateTitle = `${day} ${month} ${year}`;
-        }
-      }
+    filteredExpenses.forEach((expense) => {
+      const dateTitle = expense.date || expense.isoDate || 'Earlier';
 
-      if (!groupsMap[dateTitle]) {
-        groupsMap[dateTitle] = {
+      if (!groups[dateTitle]) {
+        groups[dateTitle] = {
           dateTitle,
           items: [],
           subtotal: 0,
         };
       }
-      groupsMap[dateTitle].items.push(item);
-      groupsMap[dateTitle].subtotal += item.amount;
+
+      groups[dateTitle].items.push(expense);
+      groups[dateTitle].subtotal += expense.amount;
     });
 
-    return Object.values(groupsMap);
+    return Object.values(groups);
   }, [filteredExpenses]);
 
-  // Calculate Summary Stats from filtered set
+  // Total filtered amount
   const totalAmount = useMemo(() => {
     return filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   }, [filteredExpenses]);
-
-  const handleSimulateLoading = () => {
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 800);
-  };
 
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setDateFilter('all');
+    setCustomDateIso('');
     setSortOption('newest');
   };
 
   return (
     <PageContainer
-      title="Expenses History"
-      subtitle="View, search, filter, and organize all your voice recorded and manual transactions."
-      badge={`${filteredExpenses.length} Items`}
+      title="Expense History & Ledger"
+      subtitle="View, search, filter, edit, or delete all your voice and manually recorded expenses."
+      badge={`${filteredExpenses.length} Records`}
       actionSlot={
         <Button
           variant="primary"
           size="md"
           onClick={() => setIsModalOpen(true)}
           leftIcon={<Plus className="w-4 h-4" />}
-          id="expenses-add-expense-btn"
+          id="expenses-add-new-btn"
         >
           Add Expense
         </Button>
@@ -166,7 +236,6 @@ export const ExpensesPage: React.FC = () => {
 
             {/* View Switcher & Demo Skeleton Button */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Simulate Refresh Button */}
               <button
                 onClick={handleSimulateLoading}
                 className="p-2.5 text-slate-500 dark:text-[#9CA3AF] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#222934] rounded-xl border border-slate-200 dark:border-[#222934] transition-colors"
@@ -176,7 +245,6 @@ export const ExpensesPage: React.FC = () => {
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#3B82F6]' : ''}`} />
               </button>
 
-              {/* View Mode Toggle */}
               <div className="flex items-center p-1 bg-slate-100 dark:bg-[#0B0F14] rounded-xl border border-slate-200 dark:border-[#222934]">
                 <button
                   onClick={() => setViewMode('timeline')}
@@ -206,7 +274,7 @@ export const ExpensesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Secondary Filters Grid: Top 20 Category, Date Range, Sort */}
+          {/* Secondary Filters Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100 dark:border-[#222934]/60">
             {/* Top 20 Categories Filter */}
             <div className="flex flex-col gap-1">
@@ -271,7 +339,6 @@ export const ExpensesPage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Calendar Picker Trigger Input */}
                 <div
                   className="relative flex items-center cursor-pointer shrink-0"
                   title="Pick specific date from Calendar"
@@ -320,9 +387,7 @@ export const ExpensesPage: React.FC = () => {
           </div>
         </Card>
 
-        {/* ------------------------------------------------------------- */}
-        {/* 2. TOTAL FILTERED SUMMARY CARD                                */}
-        {/* ------------------------------------------------------------- */}
+        {/* Total Filtered Summary Card */}
         <div className="flex items-center justify-between p-4 rounded-2xl bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] shadow-sm">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Total Filtered Spending:</span>
@@ -341,9 +406,7 @@ export const ExpensesPage: React.FC = () => {
           )}
         </div>
 
-        {/* ------------------------------------------------------------- */}
-        {/* 3. DAY-WISE SEGREGATED EXPENSES CONTENT AREA                  */}
-        {/* ------------------------------------------------------------- */}
+        {/* Expenses Content */}
         {isLoading ? (
           <ExpenseSkeleton count={6} layoutMode={viewMode === 'table' ? 'table' : 'grid'} />
         ) : filteredExpenses.length === 0 ? (
@@ -353,7 +416,6 @@ export const ExpensesPage: React.FC = () => {
             onAddExpense={() => setIsModalOpen(true)}
           />
         ) : viewMode === 'table' ? (
-          /* Day-wise Segregated Table View */
           <Card className="p-0 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -370,7 +432,6 @@ export const ExpensesPage: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-[#222934]/60">
                   {groupedExpenses.map((group) => (
                     <React.Fragment key={group.dateTitle}>
-                      {/* Day Header Row */}
                       <tr className="bg-slate-100/70 dark:bg-[#0B0F14]/90 border-y border-slate-200 dark:border-[#222934]">
                         <td colSpan={6} className="py-2.5 px-4">
                           <div className="flex items-center justify-between">
@@ -391,12 +452,13 @@ export const ExpensesPage: React.FC = () => {
                         </td>
                       </tr>
 
-                      {/* Day Expenses Rows */}
                       {group.items.map((expense) => (
                         <ExpenseCard
                           key={expense.id}
                           expense={expense}
                           layoutMode="table"
+                          onDelete={(id) => deleteExpense(id)}
+                          onEdit={(exp) => openEditModal(exp)}
                         />
                       ))}
                     </React.Fragment>
@@ -406,11 +468,9 @@ export const ExpensesPage: React.FC = () => {
             </div>
           </Card>
         ) : (
-          /* Day-wise Segregated Timeline / Cards View */
           <div className="space-y-8">
             {groupedExpenses.map((group) => (
               <div key={group.dateTitle} className="space-y-3">
-                {/* Day Header Banner */}
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-[#222934]/80">
                   <div className="flex items-center gap-2.5">
                     <div className="p-1.5 rounded-lg bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20">
@@ -432,13 +492,14 @@ export const ExpensesPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Day Expense Cards Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {group.items.map((expense) => (
                     <ExpenseCard
                       key={expense.id}
                       expense={expense}
                       layoutMode="grid"
+                      onDelete={(id) => deleteExpense(id)}
+                      onEdit={(exp) => openEditModal(exp)}
                     />
                   ))}
                 </div>
@@ -448,11 +509,100 @@ export const ExpensesPage: React.FC = () => {
         )}
       </div>
 
-      {/* Shared Add Expense Modal Dialog */}
+      {/* Add Expense Modal */}
       <AddExpenseModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* Edit Expense Modal */}
+      <AnimatePresence>
+        {editingExpense && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] rounded-3xl p-6 space-y-6 relative"
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#222934] pb-4">
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-[#F3F4F6]">Edit Expense Record</h3>
+                <button onClick={() => setEditingExpense(null)} className="text-slate-400 hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Expense / Merchant Title</label>
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Amount (₹)</label>
+                  <Input
+                    type="number"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl bg-slate-100 dark:bg-[#0B0F14] border border-slate-200 dark:border-[#222934] text-sm font-semibold text-slate-900 dark:text-[#F3F4F6]"
+                  >
+                    {TOP_20_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Payment Method</label>
+                  <select
+                    value={editMethod}
+                    onChange={(e) => setEditMethod(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl bg-slate-100 dark:bg-[#0B0F14] border border-slate-200 dark:border-[#222934] text-sm font-semibold text-slate-900 dark:text-[#F3F4F6]"
+                  >
+                    <option value="UPI">UPI</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Debit Card">Debit Card</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Net Banking">Net Banking</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Date</label>
+                  <Input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <Button type="button" variant="secondary" size="md" className="flex-1" onClick={() => setEditingExpense(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" size="md" className="flex-1" leftIcon={<Check className="w-4 h-4" />}>
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </PageContainer>
   );
 };
