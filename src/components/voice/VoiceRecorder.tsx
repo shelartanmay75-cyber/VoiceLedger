@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { CheckCircle2 } from 'lucide-react';
 import type { RecordingState, ExtractedExpense } from '../../types/voice';
 import { extractExpenseWithGemini } from '../../services/geminiService';
 import { MicrophoneButton } from './MicrophoneButton';
@@ -8,6 +9,7 @@ import { RecordingStatus } from './RecordingStatus';
 import { RecordingTimer } from './RecordingTimer';
 import { ProcessingLoader } from './ProcessingLoader';
 import { ExpenseReviewCard } from './ExpenseReviewCard';
+import { useData } from '../../context/DataContext';
 
 // SpeechRecognition type declarations for browser support
 interface IWindow extends Window {
@@ -19,12 +21,48 @@ export interface VoiceRecorderProps {
   className?: string;
 }
 
+/**
+ * Helper to convert date string to ISO YYYY-MM-DD
+ */
+function toISODateString(dateStr: string): string {
+  const lower = (dateStr || '').toLowerCase().trim();
+  const today = new Date();
+  const currentYear = today.getFullYear();
+
+  if (lower === 'today' || !lower) {
+    return today.toISOString().split('T')[0];
+  }
+  if (lower === 'yesterday') {
+    const yest = new Date(today.getTime() - 86400000);
+    return yest.toISOString().split('T')[0];
+  }
+
+  const cleanStr = dateStr.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+  let parsed = new Date(cleanStr);
+
+  if (isNaN(parsed.getTime())) {
+    parsed = new Date(`${cleanStr} ${currentYear}`);
+  }
+
+  if (!isNaN(parsed.getTime())) {
+    const yyyy = parsed.getFullYear();
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return today.toISOString().split('T')[0];
+}
+
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) => {
+  const { addExpense } = useData();
   const [state, setState] = useState<RecordingState>('Idle');
   const [transcript, setTranscript] = useState<string>('');
   const [expenseData, setExpenseData] = useState<ExtractedExpense | null>(null);
   const [timerSeconds, setTimerSeconds] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const timerIntervalRef = useRef<any>(null);
@@ -64,6 +102,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
   // Start Speech Recognition
   const startRecording = async () => {
     setErrorMessage(null);
+    setSuccessMessage(null);
     setTranscript('');
     setExpenseData(null);
 
@@ -92,7 +131,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
     const recognition = new SpeechRecognitionClass();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-IN'; // Optimized for English/Indian context (rupees, UPI, etc.)
+    recognition.lang = 'en-IN'; // Optimized for English/Indian context
 
     recognition.onstart = () => {
       setState('Listening');
@@ -123,9 +162,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
       stopTimer();
     };
 
-    recognition.onend = () => {
-      // If recognition stops while state is still Listening, handle completion or silence
-    };
+    recognition.onend = () => {};
 
     recognitionRef.current = recognition;
 
@@ -181,10 +218,59 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
     setExpenseData(null);
     setTimerSeconds(0);
     setErrorMessage(null);
+    setSuccessMessage(null);
+  };
+
+  // Save Expense Action
+  const handleSaveExpense = async (extracted: ExtractedExpense) => {
+    if (!extracted || !extracted.title || extracted.amount <= 0) return;
+
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    try {
+      const isoDate = toISODateString(extracted.date);
+      const dateFormatted = extracted.date || new Date(isoDate).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+
+      await addExpense({
+        title: extracted.title,
+        amount: extracted.amount,
+        category: extracted.category || 'Miscellaneous',
+        paymentMethod: (extracted.paymentMethod as any) || 'UPI',
+        date: dateFormatted,
+        isoDate,
+        notes: extracted.notes ? `${extracted.notes} (Voice: "${transcript}")` : `Voice transcript: "${transcript}"`,
+        iconName: 'ShoppingBag',
+        categoryColor: 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30',
+      });
+
+      setSuccessMessage(`Successfully added "${extracted.title}" (₹${extracted.amount.toLocaleString('en-IN')}) to your expense ledger!`);
+      
+      setTimeout(() => {
+        handleReset();
+      }, 2200);
+    } catch (err: any) {
+      console.error('Error saving voice expense:', err);
+      setErrorMessage(err?.message || 'Failed to save expense. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className={`w-full flex flex-col items-center space-y-6 ${className}`}>
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div className="w-full max-w-lg p-4 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/30 text-[#22C55E] text-center font-bold text-xs sm:text-sm flex items-center justify-center gap-2 animate-bounce">
+          <CheckCircle2 className="w-5 h-5" />
+          {successMessage}
+        </div>
+      )}
+
       {/* Recording Status & Timer Header */}
       <div className="flex items-center gap-3 justify-center flex-wrap">
         <RecordingStatus state={state} errorMessage={errorMessage} onRetry={handleReset} />
@@ -202,10 +288,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
         />
       )}
 
-      {/* Live Transcript Display */}
-      {(state === 'Idle' || state === 'Listening' || state === 'Processing') && (
-        <LiveTranscript transcript={transcript} state={state} />
-      )}
+      {/* Live Transcript Display - Preserved across all states */}
+      <LiveTranscript transcript={transcript} state={state} />
 
       {/* Loading Animation: "Analyzing your expense..." */}
       <AnimatePresence mode="wait">
@@ -219,7 +303,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
             key="review-card"
             expense={expenseData}
             onUpdateExpense={(updated) => setExpenseData(updated)}
+            onSaveExpense={handleSaveExpense}
             onReset={handleReset}
+            isSaving={isSaving}
           />
         )}
       </AnimatePresence>

@@ -10,6 +10,8 @@ import {
   FileText,
   Tag,
   RotateCcw,
+  Plus,
+  Loader2,
 } from 'lucide-react';
 import type { ExtractedExpense } from '../../types/voice';
 import { EditableField } from './EditableField';
@@ -19,7 +21,9 @@ import { Button } from '../ui/Button';
 export interface ExpenseReviewCardProps {
   expense: ExtractedExpense;
   onUpdateExpense: (updated: ExtractedExpense) => void;
+  onSaveExpense: (expense: ExtractedExpense) => void;
   onReset: () => void;
+  isSaving?: boolean;
 }
 
 /**
@@ -60,7 +64,9 @@ function toISODateString(dateStr: string): string {
 export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
   expense,
   onUpdateExpense,
+  onSaveExpense,
   onReset,
+  isSaving = false,
 }) => {
   const handleChange = (field: keyof ExtractedExpense, value: string | number) => {
     onUpdateExpense({
@@ -93,7 +99,7 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
               </span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-[#9CA3AF] mt-0.5">
-              Review and edit any field before continuing.
+              Review, edit fields, and save to your expense ledger.
             </p>
           </div>
         </div>
@@ -117,7 +123,7 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
           value={expense.title}
           onChange={(val) => handleChange('title', val)}
           icon={<Tag className="w-4 h-4" />}
-          placeholder="e.g. Starbucks Coffee"
+          placeholder="e.g. Burger, Starbucks Coffee"
           id="review-field-title"
         />
 
@@ -138,7 +144,7 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
           value={expense.merchant}
           onChange={(val) => handleChange('merchant', val)}
           icon={<Store className="w-4 h-4" />}
-          placeholder="e.g. Starbucks, Nike"
+          placeholder="e.g. McDonald's, Starbucks, Nike"
           id="review-field-merchant"
         />
 
@@ -208,6 +214,32 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
             id="review-field-notes"
           />
         </div>
+      </div>
+
+      {/* Action Footer Buttons */}
+      <div className="pt-4 border-t border-slate-200 dark:border-[#222934] flex flex-col sm:flex-row items-center justify-between gap-3">
+        <Button
+          variant="secondary"
+          size="md"
+          onClick={onReset}
+          leftIcon={<RotateCcw className="w-4 h-4" />}
+          className="w-full sm:w-auto"
+          id="expense-review-record-another-btn-footer"
+        >
+          Record Another / Reset
+        </Button>
+
+        <Button
+          variant="primary"
+          size="md"
+          onClick={() => onSaveExpense(expense)}
+          disabled={isSaving || !expense.title || expense.amount <= 0}
+          leftIcon={isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          className="w-full sm:w-auto shadow-lg shadow-[#3B82F6]/25 font-bold"
+          id="expense-review-add-expense-btn"
+        >
+          {isSaving ? 'Saving Expense...' : 'Add Expense to Ledger'}
+        </Button>
       </div>
     </motion.div>
   );
