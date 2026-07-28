@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Sparkles,
   CheckCircle2,
-  DollarSign,
+  IndianRupee,
   Store,
   Calendar,
   CreditCard,
@@ -23,11 +23,12 @@ export interface ExpenseReviewCardProps {
 }
 
 /**
- * Converts relative or freeform date strings (e.g., "Today", "Yesterday") into ISO YYYY-MM-DD format for HTML5 calendar picker
+ * Converts relative or freeform date strings (e.g., "Today", "Yesterday", "25 July", "25th July 2026") into ISO YYYY-MM-DD format for HTML5 calendar picker
  */
 function toISODateString(dateStr: string): string {
   const lower = (dateStr || '').toLowerCase().trim();
   const today = new Date();
+  const currentYear = today.getFullYear();
 
   if (lower === 'today' || !lower) {
     return today.toISOString().split('T')[0];
@@ -37,9 +38,20 @@ function toISODateString(dateStr: string): string {
     return yest.toISOString().split('T')[0];
   }
 
-  const parsed = new Date(dateStr);
+  // Strip ordinal suffixes e.g. 25th -> 25
+  const cleanStr = dateStr.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+  let parsed = new Date(cleanStr);
+
+  // If year is omitted (e.g., "25 July"), append current year
+  if (isNaN(parsed.getTime())) {
+    parsed = new Date(`${cleanStr} ${currentYear}`);
+  }
+
   if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString().split('T')[0];
+    const yyyy = parsed.getFullYear();
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   }
 
   return today.toISOString().split('T')[0];
@@ -115,7 +127,7 @@ export const ExpenseReviewCard: React.FC<ExpenseReviewCardProps> = ({
           type="number"
           value={expense.amount}
           onChange={(val) => handleChange('amount', val)}
-          icon={<DollarSign className="w-4 h-4" />}
+          icon={<IndianRupee className="w-4 h-4" />}
           placeholder="e.g. 250"
           id="review-field-amount"
         />

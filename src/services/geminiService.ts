@@ -2,43 +2,65 @@ import type { ExtractedExpense } from '../types/voice';
 import { EXPENSE_CATEGORIES } from '../types/voice';
 
 /**
+ * Known merchant lookup dictionary for common brand names
+ */
+const KNOWN_MERCHANTS: { [key: string]: string } = {
+  macdonalds: "McDonald's",
+  mcdonalds: "McDonald's",
+  mcd: "McDonald's",
+  starbucks: 'Starbucks',
+  nike: 'Nike',
+  adidas: 'Adidas',
+  amazon: 'Amazon',
+  flipkart: 'Flipkart',
+  zomato: 'Zomato',
+  swiggy: 'Swiggy',
+  uber: 'Uber',
+  ola: 'Ola',
+  shell: 'Shell',
+  dmart: 'DMart',
+  kfc: 'KFC',
+  dominos: "Domino's",
+  pizzahut: 'Pizza Hut',
+  subway: 'Subway',
+  apple: 'Apple',
+  google: 'Google',
+  netflix: 'Netflix',
+  spotify: 'Spotify',
+};
+
+/**
  * Fallback parser using regex rules when API key is missing or offline
  */
 function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
   const lower = transcript.toLowerCase();
 
-  // Extract Amount (e.g. ₹250, 250 rupees, rs 250, 250 rs, 4200)
+  // 1. Extract Amount (e.g. ₹250, 250 rupees, rs 250, 250 rs, 4200)
   let amount = 0;
   const amountMatch = transcript.match(/(?:₹|rs\.?|rupees|inr)?\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:₹|rs\.?|rupees|inr)?/i);
   if (amountMatch && amountMatch[1]) {
     amount = parseFloat(amountMatch[1].replace(/,/g, ''));
   }
 
-  // Extract Merchant
-  let merchant = 'Unknown';
-  const merchantPatterns = [
-    /(?:at|from|on|to|in)\s+([A-Z][a-zA-Z0-9\s'&]+?)(?=\s+(?:today|yesterday|for|using|with|via|rupees|rs|₹|\d|$))/i,
-    /(?:at|from)\s+([a-zA-Z0-9\s'&]+?)(?=\s+for|\s+today|\s+yesterday|\s+using|\s+with|$)/i,
-  ];
-  for (const pattern of merchantPatterns) {
-    const match = transcript.match(pattern);
-    if (match && match[1] && match[1].trim().length > 1) {
-      merchant = match[1].trim();
-      break;
-    }
-  }
-
-  // Extract Date
+  // 2. Extract Spoken Date (e.g. 25 july, july 25, 25th july, 25/07, yesterday, today)
   let date = 'Today';
-  if (lower.includes('yesterday')) {
+  const monthRegex = /(\d{1,2}(?:st|nd|rd|th)?\s+(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:\s+\d{2,4})?)/i;
+  const monthRegexAlt = /((?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{2,4})?)/i;
+  const dateNumRegex = /(\d{1,2}[\/\.-]\d{1,2}(?:[\/\.-]\d{2,4})?)/;
+
+  const dateMatch = transcript.match(monthRegex) || transcript.match(monthRegexAlt) || transcript.match(dateNumRegex);
+
+  if (dateMatch && dateMatch[1]) {
+    date = dateMatch[1].trim();
+  } else if (lower.includes('yesterday')) {
     date = 'Yesterday';
-  } else if (lower.includes('last week')) {
-    date = 'Last Week';
+  } else if (lower.includes('today')) {
+    date = 'Today';
   } else if (lower.includes('tomorrow')) {
     date = 'Tomorrow';
   }
 
-  // Extract Payment Method
+  // 3. Extract Payment Method
   let paymentMethod = 'Unknown';
   if (lower.includes('upi') || lower.includes('gpay') || lower.includes('phonepe') || lower.includes('paytm')) {
     paymentMethod = 'UPI';
@@ -52,39 +74,86 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
     paymentMethod = 'Net Banking';
   }
 
-  // Predict Category & Title
+  // 4. Extract Merchant
+  let merchant = 'Unknown';
+  // Check known merchants first
+  for (const [key, canonicalName] of Object.entries(KNOWN_MERCHANTS)) {
+    if (lower.includes(key)) {
+      merchant = canonicalName;
+      break;
+    }
+  }
+
+  // If merchant still unknown, try regex matching after prepositions
+  if (merchant === 'Unknown') {
+    const merchantPatterns = [
+      /(?:at|from|to|in)\s+([A-Z][a-zA-Z0-9\s'&]+?)(?=\s+(?:today|yesterday|for|using|with|via|rupees|rs|₹|\d|$))/i,
+      /(?:at|from)\s+([a-zA-Z0-9\s'&]+?)(?=\s+for|\s+today|\s+yesterday|\s+using|\s+with|$)/i,
+    ];
+    for (const pattern of merchantPatterns) {
+      const match = transcript.match(pattern);
+      if (match && match[1] && match[1].trim().length > 1) {
+        merchant = match[1].trim();
+        break;
+      }
+    }
+  }
+
+  // 5. Extract Title (Item Name) & Category
   let category = 'Miscellaneous';
   let title = 'Expense';
 
-  if (lower.includes('coffee') || lower.includes('starbucks') || lower.includes('tea') || lower.includes('food') || lower.includes('lunch') || lower.includes('dinner') || lower.includes('restaurant') || lower.includes('zomato') || lower.includes('swiggy') || lower.includes('pizza') || lower.includes('burger')) {
+  // Common item keywords
+  if (lower.includes('burger')) {
+    title = 'Burger';
     category = 'Food & Beverages';
-    title = lower.includes('coffee') ? 'Coffee' : lower.includes('tea') ? 'Tea' : lower.includes('lunch') ? 'Lunch' : lower.includes('dinner') ? 'Dinner' : 'Food & Drinks';
-  } else if (lower.includes('shoes') || lower.includes('nike') || lower.includes('clothes') || lower.includes('shopping') || lower.includes('amazon') || lower.includes('flipkart') || lower.includes('shirt') || lower.includes('pants')) {
-    category = 'Shopping';
-    title = lower.includes('shoes') ? 'Shoes' : lower.includes('clothes') ? 'Apparel' : 'Shopping';
-  } else if (lower.includes('cab') || lower.includes('uber') || lower.includes('ola') || lower.includes('petrol') || lower.includes('diesel') || lower.includes('fuel') || lower.includes('auto') || lower.includes('bus') || lower.includes('flight') || lower.includes('train')) {
+  } else if (lower.includes('coffee')) {
+    title = 'Coffee';
+    category = 'Food & Beverages';
+  } else if (lower.includes('pizza')) {
+    title = 'Pizza';
+    category = 'Food & Beverages';
+  } else if (lower.includes('tea')) {
+    title = 'Tea';
+    category = 'Food & Beverages';
+  } else if (lower.includes('lunch')) {
+    title = 'Lunch';
+    category = 'Food & Beverages';
+  } else if (lower.includes('dinner')) {
+    title = 'Dinner';
+    category = 'Food & Beverages';
+  } else if (lower.includes('petrol') || lower.includes('fuel')) {
+    title = 'Fuel';
     category = 'Transportation';
-    title = lower.includes('petrol') || lower.includes('fuel') ? 'Fuel' : lower.includes('uber') || lower.includes('cab') || lower.includes('ola') ? 'Cab Ride' : 'Transportation';
-  } else if (lower.includes('rent') || lower.includes('apartment') || lower.includes('maintenance')) {
-    category = 'Housing & Rent';
+  } else if (lower.includes('shoes')) {
+    title = 'Shoes';
+    category = 'Shopping';
+  } else if (lower.includes('clothes') || lower.includes('shirt') || lower.includes('pants')) {
+    title = 'Apparel';
+    category = 'Shopping';
+  } else if (lower.includes('cab') || lower.includes('uber') || lower.includes('ola')) {
+    title = 'Cab Ride';
+    category = 'Transportation';
+  } else if (lower.includes('rent')) {
     title = 'Rent';
-  } else if (lower.includes('electricity') || lower.includes('water bill') || lower.includes('wifi') || lower.includes('internet')) {
-    category = 'Utilities';
-    title = lower.includes('wifi') || lower.includes('internet') ? 'WiFi Bill' : 'Electricity Bill';
-  } else if (lower.includes('doctor') || lower.includes('medicine') || lower.includes('hospital') || lower.includes('pharmacy')) {
-    category = 'Healthcare';
-    title = 'Medical Expense';
-  } else if (lower.includes('movie') || lower.includes('cinema') || lower.includes('netflix') || lower.includes('game') || lower.includes('spotify')) {
-    category = 'Entertainment';
-    title = lower.includes('netflix') ? 'Netflix' : 'Entertainment';
-  } else if (lower.includes('hotel') || lower.includes('trip') || lower.includes('vacation')) {
-    category = 'Travel';
-    title = 'Travel Expense';
+    category = 'Housing & Rent';
+  } else if (lower.includes('groceries')) {
+    title = 'Groceries';
+    category = 'Shopping';
   }
 
-  // Refine title if merchant is present and title is generic
-  if (title === 'Expense' && merchant !== 'Unknown') {
-    title = `${merchant} Purchase`;
+  // Fallback title logic if title not matched by explicit item keyword
+  if (title === 'Expense') {
+    const itemMatch = transcript.match(/on\s+([a-zA-Z0-9\s]+?)(?=\s+(?:at|from|on|at|for|using|with|rs|rupees|₹|\d|$))/i);
+    if (itemMatch && itemMatch[1] && itemMatch[1].trim().length > 1) {
+      const candidate = itemMatch[1].trim();
+      if (!KNOWN_MERCHANTS[candidate.toLowerCase()]) {
+        title = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+      }
+    }
+    if (title === 'Expense' && merchant !== 'Unknown') {
+      title = `${merchant} Purchase`;
+    }
   }
 
   return {
@@ -110,8 +179,7 @@ export async function extractExpenseWithGemini(transcript: string): Promise<Extr
 
   // If no API key is provided, use fallback heuristic parser
   if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    // Artificial slight delay for realistic loading feedback
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 800));
     return parseTranscriptHeuristically(transcript);
   }
 
@@ -123,13 +191,13 @@ Categories available:
 ${EXPENSE_CATEGORIES.map((c) => `- ${c}`).join('\n')}
 
 Instructions:
-1. Extract title (short name of expense e.g. "Coffee", "Shoes", "Fuel", "Rent").
-2. Extract amount as a numeric value only (e.g., 250, 4200). If currency symbols are present, convert to number.
-3. Extract merchant (store/service name e.g., "Starbucks", "Nike", "Amazon", "Uber"). If unknown, use "Unknown".
-4. Extract category. It MUST be EXACTLY ONE of the categories listed above.
-5. Extract date (e.g., "Today", "Yesterday", or date string). Default to "Today".
-6. Extract paymentMethod (e.g., "UPI", "Credit Card", "Debit Card", "Cash", "Net Banking", "Unknown").
-7. Extract notes if additional context is provided in transcript, otherwise empty string "".
+1. Extract "title": The specific product or item purchased (e.g. "Burger", "Coffee", "Shoes", "Fuel", "Rent"). Do NOT put the store or merchant name as the title if an item is mentioned. For example: for "spent 250 rs on burger on macdonalds on 25 july", title MUST be "Burger".
+2. Extract "merchant": The store, restaurant, app, or vendor name (e.g. "McDonald's", "Starbucks", "Nike", "Amazon", "Uber"). For example: for "spent 250 rs on burger on macdonalds on 25 july", merchant MUST be "McDonald's". If unknown, use "Unknown".
+3. Extract "amount": Numeric value only (e.g., 250, 4200). Convert currency words (rupees, rs, inr, $) to numbers.
+4. Extract "category": It MUST be EXACTLY ONE of the categories listed above.
+5. Extract "date": Extract any explicit date mentioned in the spoken transcript (e.g. "25 July", "25th July", "Yesterday", "25/07/2026"). If a specific date like "25 July" is spoken, extract it accurately as spoken or formatted (e.g. "25 July 2026" or "25 July"). Default to "Today" ONLY if no date at all is mentioned in transcript.
+6. Extract "paymentMethod": Payment method if mentioned (e.g., "UPI", "Credit Card", "Debit Card", "Cash", "Net Banking", "Unknown").
+7. Extract "notes": Any additional details if mentioned, otherwise "".
 
 Return ONLY valid JSON matching this schema:
 {
@@ -177,7 +245,6 @@ Return ONLY valid JSON matching this schema:
 
     const parsedJson = JSON.parse(candidateText);
 
-    // Validate fields
     return {
       title: parsedJson.title || 'Spoken Expense',
       amount: typeof parsedJson.amount === 'number' ? parsedJson.amount : parseFloat(parsedJson.amount) || 0,
