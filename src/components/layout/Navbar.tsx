@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Mic,
   Search,
@@ -28,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleMobileSidebar,
   isMobileSidebarOpen,
 }) => {
+  const navigate = useNavigate();
   const { user, isGuest } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [hasUnreadNotifications] = useState(true);
@@ -97,6 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <Button
           variant="secondary"
           size="sm"
+          onClick={() => navigate('/voice')}
           className="hidden sm:flex items-center gap-1.5 border-[#3B82F6]/20 bg-[#3B82F6]/5 text-[#3B82F6] hover:bg-[#3B82F6]/15 hover:border-[#3B82F6]/40"
           id="navbar-voice-action-btn"
         >

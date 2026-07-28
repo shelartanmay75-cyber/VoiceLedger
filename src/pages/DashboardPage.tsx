@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Mic,
   Plus,
   Sparkles,
   TrendingDown,
@@ -26,6 +25,7 @@ import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
+import { VoiceRecorder } from '../components/voice/VoiceRecorder';
 import {
   mockQuickStats,
   mockAIInsights,
@@ -139,9 +139,8 @@ export const DashboardPage: React.FC = () => {
           <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#3B82F6]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-10 w-72 h-72 bg-[#2563EB]/5 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Left Content: Title, Badge, Description */}
-            <div className="space-y-3 text-center md:text-left max-w-xl">
+          <div className="relative z-10 space-y-6">
+            <div className="text-center space-y-2 max-w-xl mx-auto">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/30">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Primary Feature • AI Voice Ledger Engine</span>
@@ -150,59 +149,12 @@ export const DashboardPage: React.FC = () => {
                 Record your expenses with voice
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-[#9CA3AF] leading-relaxed">
-                Simply tap the microphone and speak naturally. For example: <br className="hidden sm:inline" />
-                <span className="font-semibold text-slate-800 dark:text-[#F3F4F6]">
-                  "Spent ₹250 on coffee at Starbucks"
-                </span>{' '}
-                or{' '}
-                <span className="font-semibold text-slate-800 dark:text-[#F3F4F6]">
-                  "Paid ₹1,850 for petrol"
-                </span>
-                . Our AI categorizes it automatically.
+                Simply tap the microphone and speak naturally (e.g. <span className="font-semibold text-slate-800 dark:text-[#F3F4F6]">"Spent ₹250 on coffee at Starbucks"</span>). Our Gemini AI extracts structured expense data automatically.
               </p>
             </div>
 
-            {/* Right Content: Large Animated Mic Button & Actions */}
-            <div className="flex flex-col items-center gap-4 shrink-0">
-              <div className="relative py-2">
-                {/* Outer Pulsing Aura Rings */}
-                <motion.div
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.7, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
-                  className="absolute inset-0 rounded-full bg-[#3B82F6]/20 blur-md"
-                />
-                <motion.div
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.8, 0.4] }}
-                  transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut', delay: 0.2 }}
-                  className="absolute inset-0 rounded-full bg-[#3B82F6]/30"
-                />
-
-                {/* Main Mic Button */}
-                <button
-                  id="dashboard-hero-mic-btn"
-                  className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-[#2563EB] via-[#3B82F6] to-[#60A5FA] p-1 shadow-[0_0_40px_rgba(59,130,246,0.5)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer group"
-                >
-                  <div className="w-full h-full bg-[#0B0F14] rounded-full flex items-center justify-center group-hover:bg-slate-900 transition-colors">
-                    <Mic className="w-10 h-10 sm:w-12 sm:h-12 text-[#3B82F6] group-hover:scale-110 transition-transform" />
-                  </div>
-                </button>
-              </div>
-
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-[#F3F4F6]">
-                  Tap to record an expense
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsAddExpenseModalOpen(true)}
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
-                  id="dashboard-manual-add-btn"
-                >
-                  Add Manually
-                </Button>
-              </div>
-            </div>
+            {/* AI-Powered Voice Recorder */}
+            <VoiceRecorder />
           </div>
         </Card>
 
