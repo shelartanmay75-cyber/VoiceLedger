@@ -29,6 +29,9 @@ const KNOWN_MERCHANTS: { [key: string]: string } = {
   google: 'Google',
   netflix: 'Netflix',
   spotify: 'Spotify',
+  croma: 'Croma',
+  reliance: 'Reliance Digital',
+  vijaysales: 'Vijay Sales',
 };
 
 /**
@@ -111,6 +114,18 @@ const CATEGORY_KEYWORDS: { category: string; keywords: string[] }[] = [
   {
     category: 'Shopping',
     keywords: [
+      'keyboard',
+      'keyboards',
+      'mouse',
+      'monitor',
+      'headphones',
+      'earphones',
+      'headset',
+      'charger',
+      'cable',
+      'adapter',
+      'gadget',
+      'gadgets',
       'shoes',
       'clothes',
       'shirt',
@@ -130,7 +145,6 @@ const CATEGORY_KEYWORDS: { category: string; keywords: string[] }[] = [
       'laptop',
       'phone',
       'mobile',
-      'gadget',
       'electronics',
       'bag',
       'watch',
@@ -364,22 +378,29 @@ function classifyCategory(transcript: string): string {
 }
 
 /**
- * Sanitizes extracted titles and merchants by trimming leftover prepositions (e.g. "on", "at", "for", "from")
+ * Sanitizes extracted titles and merchants by trimming action phrases and prepositions
  */
 function cleanExtractedString(str: string): string {
   if (!str) return '';
   let cleaned = str.trim();
 
-  // Strip trailing noise words and prepositions repeatedly
-  const trailingNoiseRegex = /\s+(?:on|at|for|from|to|in|with|via|using|of|by|and|rs|rupees|inr|₹|\d+)$/i;
+  if (cleaned.toLowerCase() === 'unknown' || cleaned.toLowerCase() === 'none') {
+    return '';
+  }
+
+  // Strip leading action filler e.g. "spent 6000rs to buy a keyboard" -> "keyboard"
+  cleaned = cleaned.replace(/^(?:spent\s+\d+(?:,\d+)*(?:\.\d+)?\s*(?:rs|rupees|inr|₹)?\s*(?:to\s+buy|for\s+buying|on|for)\s*(?:a|an|the)?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:paid\s+\d+(?:,\d+)*(?:\.\d+)?\s*(?:rs|rupees|inr|₹)?\s*(?:for|to\s+buy)\s*(?:a|an|the)?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:bought\s+(?:a|an|the)?\s*)/i, '');
+  cleaned = cleaned.replace(/^(?:on|at|for|from|to|in|with|via|using|paid|spent)\s+/i, '');
+
+  // Strip trailing noise words and prepositions
+  const trailingNoiseRegex = /\s+(?:on|at|for|from|to|in|with|via|using|paid\s+using|paid|spent|and|rs|rupees|inr|₹|\d+)$/i;
   while (trailingNoiseRegex.test(cleaned)) {
     cleaned = cleaned.replace(trailingNoiseRegex, '').trim();
   }
 
-  // Strip leading prepositions if any e.g. "on burger" -> "burger"
-  cleaned = cleaned.replace(/^(?:on|at|for|from|to|in|with|via|using|paid|spent)\s+/i, '').trim();
-
-  if (!cleaned) return '';
+  if (!cleaned || cleaned.toLowerCase() === 'unknown') return '';
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
@@ -390,14 +411,14 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
   const lower = transcript.toLowerCase();
   const currentYear = new Date().getFullYear();
 
-  // 1. Extract Amount (e.g. ₹250, 250 rupees, rs 250, 250 rs, 4200)
+  // 1. Extract Amount (e.g. 6000rs, ₹250, 250 rupees, rs 250, 250 rs)
   let amount = 0;
   const amountMatch = transcript.match(/(?:₹|rs\.?|rupees|inr)?\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:₹|rs\.?|rupees|inr)?/i);
   if (amountMatch && amountMatch[1]) {
     amount = parseFloat(amountMatch[1].replace(/,/g, ''));
   }
 
-  // 2. Extract Spoken Date (e.g. 25 july, july 25, 25th july, 25/07, yesterday, today)
+  // 2. Extract Spoken Date
   let date = 'Today';
   const monthRegex = /(\d{1,2}(?:st|nd|rd|th)?\s+(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:\s+\d{2,4})?)/i;
   const monthRegexAlt = /((?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{2,4})?)/i;
@@ -434,7 +455,7 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
   }
 
   // 4. Extract Merchant
-  let merchant = 'Unknown';
+  let merchant = '';
   for (const [key, canonicalName] of Object.entries(KNOWN_MERCHANTS)) {
     if (lower.includes(key)) {
       merchant = canonicalName;
@@ -442,16 +463,19 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
     }
   }
 
-  if (merchant === 'Unknown') {
+  if (!merchant) {
     const merchantPatterns = [
-      /(?:at|from|to|in)\s+([A-Z][a-zA-Z0-9\s'&]+?)(?=\s+(?:today|yesterday|for|using|with|via|rupees|rs|₹|\d|$))/i,
+      /(?:at|from)\s+([A-Z][a-zA-Z0-9\s'&]+?)(?=\s+(?:today|yesterday|for|using|with|via|rupees|rs|₹|\d|$))/i,
       /(?:at|from)\s+([a-zA-Z0-9\s'&]+?)(?=\s+for|\s+today|\s+yesterday|\s+using|\s+with|$)/i,
     ];
     for (const pattern of merchantPatterns) {
       const match = transcript.match(pattern);
       if (match && match[1] && match[1].trim().length > 1) {
-        merchant = match[1].trim();
-        break;
+        const candidate = match[1].trim();
+        if (!['upi', 'gpay', 'phonepe', 'cash', 'card'].includes(candidate.toLowerCase())) {
+          merchant = candidate;
+          break;
+        }
       }
     }
   }
@@ -459,9 +483,15 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
   // 5. Categorize dynamically using 20-category classifier engine
   const category = classifyCategory(transcript);
 
-  // 6. Extract Title (Item Name)
-  let title = 'Expense';
-  if (lower.includes('autorickshaw') || lower.includes('rickshaw') || lower.includes('auto ') || lower.endsWith(' auto')) {
+  // 6. Extract Clean Title (Item Name)
+  let title = '';
+  if (lower.includes('keyboard')) {
+    title = 'Keyboard';
+  } else if (lower.includes('mouse')) {
+    title = 'Mouse';
+  } else if (lower.includes('monitor')) {
+    title = 'Monitor';
+  } else if (lower.includes('autorickshaw') || lower.includes('rickshaw') || lower.includes('auto ') || lower.endsWith(' auto')) {
     title = lower.includes('autorickshaw') ? 'Autorickshaw' : lower.includes('rickshaw') ? 'Rickshaw' : 'Auto';
   } else if (lower.includes('petrol') || lower.includes('diesel') || lower.includes('fuel')) {
     title = 'Fuel';
@@ -473,7 +503,7 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
     title = 'Coffee';
   } else if (lower.includes('pizza')) {
     title = 'Pizza';
-  } else if (lower.includes('tea')) {
+  } else if (lower.includes('tea') || lower.includes('chai')) {
     title = 'Tea';
   } else if (lower.includes('lunch')) {
     title = 'Lunch';
@@ -489,19 +519,19 @@ function parseTranscriptHeuristically(transcript: string): ExtractedExpense {
     title = 'Groceries';
   }
 
-  if (title === 'Expense') {
-    const itemMatch = transcript.match(/on\s+([a-zA-Z0-9\s]+?)(?=\s+(?:at|from|on|at|for|using|with|rs|rupees|₹|\d|$))/i) ||
-                      transcript.match(/for\s+([a-zA-Z0-9\s]+?)(?=\s+(?:at|from|on|at|for|using|with|rs|rupees|₹|\d|$))/i);
+  if (!title) {
+    // Regex matching "to buy a [item]" or "for [item]" or "bought [item]"
+    const itemMatch =
+      transcript.match(/(?:to\s+buy|for\s+buying|bought|for)\s+(?:a|an|the)?\s*([a-zA-Z0-9\s]+?)(?=\s+(?:at|from|on|using|paid|via|with|rs|rupees|₹|\d|$))/i) ||
+      transcript.match(/on\s+([a-zA-Z0-9\s]+?)(?=\s+(?:at|from|using|paid|via|with|rs|rupees|₹|\d|$))/i);
+
     if (itemMatch && itemMatch[1] && itemMatch[1].trim().length > 1) {
-      const candidate = itemMatch[1].trim();
-      if (!KNOWN_MERCHANTS[candidate.toLowerCase()]) {
-        title = candidate;
-      }
+      title = itemMatch[1].trim();
     }
   }
 
   const cleanTitle = cleanExtractedString(title) || 'Expense';
-  const cleanMerchant = cleanExtractedString(merchant) || 'Unknown';
+  const cleanMerchant = cleanExtractedString(merchant);
 
   return {
     title: cleanTitle,
@@ -531,46 +561,96 @@ export async function extractExpenseWithGemini(transcript: string): Promise<Extr
     return parseTranscriptHeuristically(transcript);
   }
 
-  const prompt = `You are an AI financial expense parsing engine. Your task is to extract structured JSON data from a spoken expense transcript.
+  const prompt = `You are a financial AI expense parser. Extract structured JSON data from a spoken expense transcript.
 
 Voice Transcript: "${transcript}"
 
 Current Ongoing Year: ${currentYear}
 
-Categories available:
+Categories available (MUST pick EXACTLY ONE from this list):
 ${EXPENSE_CATEGORIES.map((c) => `- ${c}`).join('\n')}
 
-Instructions:
-1. Extract "title": The specific product, service, or transport item purchased (e.g. "Burger", "Autorickshaw", "Coffee", "Shoes", "Fuel", "Rent"). Do NOT include trailing prepositions like "on", "at", "for". E.g., for "paid 50 rs for autorickshaw on 25 july", title MUST be "Autorickshaw" (NOT "autorickshaw on").
-2. Extract "merchant": The store, restaurant, app, or vendor name (e.g. "Domino's", "McDonald's", "Starbucks", "Nike", "Amazon", "Uber"). Do NOT include trailing prepositions like "on", "at", "for". E.g., for "spent 250 rs at dominoz on 25 july", merchant MUST be "Domino's" (NOT "dominoz on"). If unknown, use "Unknown".
-3. Extract "amount": Numeric value only (e.g., 250, 4200). Convert currency words (rupees, rs, inr, $) to numbers.
-4. Extract "category": MUST be EXACTLY ONE of the 20 categories listed above.
-   Category Classification Rules:
-   - "Transportation": rickshaw, autorickshaw, auto, cab, taxi, uber, ola, rapido, petrol, fuel, diesel, bus, metro, train, flight, parking, toll.
-   - "Food & Beverages": burger, pizza, coffee, tea, chai, food, lunch, dinner, breakfast, restaurant, swiggy, zomato, starbucks, mcdonalds, dominos, kfc, bakery, cafe.
-   - "Shopping": shoes, clothes, shirt, pants, apparel, shopping, amazon, flipkart, dmart, groceries, laptop, phone, electronics.
-   - "Housing & Rent": rent, apartment, flat, house, maintenance, lease.
-   - "Utilities": electricity, water, gas cylinder, wifi, broadband, internet, recharge, mobile bill.
-   - "Healthcare": doctor, medicine, hospital, clinic, pharmacy, medical, lab test, dentist.
-   - "Education": tuition, school, college, coaching, course, books, stationery.
-   - "Entertainment": movie, cinema, netflix, spotify, hotstar, game, concert, event.
-   - "Travel": hotel, resort, airbnb, stay, vacation, trip, tour, sightseeing.
-   - "Work & Business": office, client dinner, business, hosting, software.
-   - "Fitness & Sports": gym, fitness, workout, protein, sports, swimming, yoga.
-   - "Bills & Subscriptions": subscription, membership, recurring bill, icloud.
-   - "Gifts & Donations": gift, donation, charity, birthday gift, temple.
-   - "Pets": dog, cat, pet, vet, pet food, grooming.
-   - "Family & Kids": kids, baby, diapers, toys, childcare.
-   - "Personal Care": salon, haircut, barber, spa, cosmetics, makeup, beauty.
-   - "Investments & Savings": mutual fund, sip, stocks, crypto, fd, zerodha, groww.
-   - "Taxes & Fees": tax, gst, income tax, bank charges, penalty, interest.
-   - "Income / Refund": salary, stipend, bonus, refund, cashback, reimbursement.
-   - "Miscellaneous": Default ONLY if none of the above match.
-5. Extract "date":
-   - If the user explicitly mentions a date without a year (e.g., "25 July" or "25th July"), ALWAYS append the ongoing year ${currentYear} (e.g., "25 July ${currentYear}").
-   - If the user DOES NOT specifically mention any date at all in the transcript, ALWAYS default to the current date of that time (i.e. "Today").
-6. Extract "paymentMethod": Payment method if mentioned (e.g., "UPI", "Credit Card", "Debit Card", "Cash", "Net Banking", "Unknown").
-7. Extract "notes": Any additional details if mentioned, otherwise "".
+Rules for Extraction:
+1. "title": Extract ONLY the core product, item, or service purchased (e.g. "Keyboard", "Burger", "Autorickshaw", "Coffee", "Shoes", "Fuel", "Rent", "Headphones").
+   - MUST strip action filler phrases like "spent 6000rs to buy a", "paid for", "bought a", "paid using upi", "via upi".
+   - Example: For "spent 6000rs to buy a keyboard and paid using upi", title MUST be "Keyboard".
+   - Capitalize cleanly in Title Case.
+2. "merchant": The brand, store, app, or vendor name if mentioned (e.g., "McDonald's", "Starbucks", "Amazon", "Nike", "Uber").
+   - CRITICAL: If NO store/merchant name is explicitly mentioned (e.g. "spent 6000rs to buy a keyboard and paid using upi"), set "merchant" to "" (empty string). Do NOT use "Unknown".
+3. "amount": Numeric value only (e.g. 6000, 250). Convert words to numbers.
+4. "category": Pick EXACTLY ONE category from the 20 available categories based on these mappings:
+   - "Shopping": keyboard, mouse, monitor, headphones, electronics, laptop, shoes, clothes, apparel, amazon, flipkart, dmart, groceries.
+   - "Food & Beverages": burger, pizza, coffee, tea, chai, food, lunch, dinner, restaurant, swiggy, zomato, starbucks, mcdonalds.
+   - "Transportation": autorickshaw, rickshaw, auto, cab, taxi, uber, ola, rapido, petrol, fuel, diesel, bus, metro, train.
+   - "Housing & Rent": rent, apartment, flat, maintenance.
+   - "Utilities": electricity, water, gas cylinder, wifi, broadband, recharge.
+   - "Healthcare": doctor, medicine, hospital, pharmacy.
+   - "Education": tuition, school, college, course, books.
+   - "Entertainment": movie, cinema, netflix, spotify, game.
+   - "Travel": hotel, resort, airbnb, vacation, trip.
+   - "Work & Business": office, business, domain, hosting, aws.
+   - "Fitness & Sports": gym, fitness, workout, protein.
+   - "Bills & Subscriptions": subscription, membership, recurring bill.
+   - "Gifts & Donations": gift, donation, charity.
+   - "Pets": dog, cat, pet, vet.
+   - "Family & Kids": kids, baby, toys.
+   - "Personal Care": salon, haircut, spa, cosmetics.
+   - "Investments & Savings": mutual fund, sip, stocks, crypto, fd.
+   - "Taxes & Fees": tax, gst, bank charges.
+   - "Income / Refund": salary, bonus, refund, cashback.
+   - "Miscellaneous": Default ONLY if none match.
+5. "date": If no date is mentioned, use "Today". If date mentioned without year (e.g. "25 July"), append "${currentYear}" (e.g. "25 July ${currentYear}").
+6. "paymentMethod": Extract payment method if mentioned ("UPI", "Credit Card", "Debit Card", "Cash", "Net Banking", "Unknown").
+7. "notes": Any additional details or "".
+
+Training Examples:
+Input: "spent 6000rs to buy a keyboard and paid using upi"
+Output:
+{
+  "title": "Keyboard",
+  "amount": 6000,
+  "merchant": "",
+  "category": "Shopping",
+  "date": "Today",
+  "paymentMethod": "UPI",
+  "notes": ""
+}
+
+Input: "paid 250 rupees for a burger at mcdonalds using credit card"
+Output:
+{
+  "title": "Burger",
+  "amount": 250,
+  "merchant": "McDonald's",
+  "category": "Food & Beverages",
+  "date": "Today",
+  "paymentMethod": "Credit Card",
+  "notes": ""
+}
+
+Input: "spent 450 rs for autorickshaw yesterday via upi"
+Output:
+{
+  "title": "Autorickshaw",
+  "amount": 450,
+  "merchant": "",
+  "category": "Transportation",
+  "date": "Yesterday",
+  "paymentMethod": "UPI",
+  "notes": ""
+}
+
+Input: "bought headphones for 4500 rs from amazon on 25 july"
+Output:
+{
+  "title": "Headphones",
+  "amount": 4500,
+  "merchant": "Amazon",
+  "category": "Shopping",
+  "date": "25 July ${currentYear}",
+  "paymentMethod": "Unknown",
+  "notes": ""
+}
 
 Return ONLY valid JSON matching this schema:
 {
@@ -599,7 +679,7 @@ Return ONLY valid JSON matching this schema:
           ],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.1,
+            temperature: 0.0,
           },
         }),
       }
@@ -618,9 +698,9 @@ Return ONLY valid JSON matching this schema:
 
     const parsedJson = JSON.parse(candidateText);
 
-    // Sanitize title and merchant strings to strip trailing prepositions e.g. "autorickshaw on" -> "Autorickshaw"
-    const rawTitle = parsedJson.title || 'Spoken Expense';
-    const rawMerchant = parsedJson.merchant || 'Unknown';
+    // Sanitize title and merchant strings
+    const rawTitle = parsedJson.title || 'Expense';
+    const rawMerchant = parsedJson.merchant || '';
 
     const cleanTitleVal = cleanExtractedString(rawTitle);
     const cleanMerchantVal = cleanExtractedString(rawMerchant);
@@ -632,9 +712,9 @@ Return ONLY valid JSON matching this schema:
     }
 
     return {
-      title: cleanTitleVal || 'Spoken Expense',
+      title: cleanTitleVal || 'Expense',
       amount: typeof parsedJson.amount === 'number' ? parsedJson.amount : parseFloat(parsedJson.amount) || 0,
-      merchant: cleanMerchantVal || 'Unknown',
+      merchant: cleanMerchantVal,
       category: finalCategory,
       date: parsedJson.date || 'Today',
       paymentMethod: parsedJson.paymentMethod || 'Unknown',
