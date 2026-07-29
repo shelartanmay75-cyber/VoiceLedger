@@ -83,7 +83,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return isGuest ? mockExpensesList : [];
   });
 
-  const [goals, setGoals] = useState<SavingsGoal[]>(() => (isGuest ? mockSavingsGoals : []));
+  const [goals, setGoals] = useState<SavingsGoal[]>(() => {
+    const targetUid = userId || 'guest';
+    const key = `voiceledger_goals_${targetUid}`;
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (_) {}
+    return isGuest ? mockSavingsGoals : [];
+  });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isGuest ? mockSubscriptions : []));
   const [trips, setTrips] = useState<Trip[]>(() => (isGuest ? mockTrips : []));
   const [friends, setFriends] = useState<SharedFriend[]>(() => (isGuest ? mockSharedFriends : []));
@@ -114,9 +125,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]);
 
       if (userId && userId !== 'guest_user_demo') {
-        // Authenticated Google user: Clean slate initialization so user records expenses from beginning
+        // Authenticated Google user
         setExpenses(fetchedExpenses || []);
-        setGoals(fetchedGoals || []);
+        if (fetchedGoals && fetchedGoals.length > 0) {
+          setGoals(fetchedGoals);
+        } else {
+          // If fetchedGoals is empty, try loading local storage cache before resetting
+          const key = `voiceledger_goals_${userId}`;
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed)) setGoals(parsed);
+              else setGoals([]);
+            } catch (_) {
+              setGoals([]);
+            }
+          } else {
+            setGoals([]);
+          }
+        }
         setSubscriptions(fetchedSubs || []);
         setTrips(fetchedTrips || []);
         setFriends(fetchedShared.friends || []);

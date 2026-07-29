@@ -9,6 +9,17 @@ export const goalsService = {
   async fetchGoals(userId?: string): Promise<SavingsGoal[]> {
     const key = `voiceledger_goals_${userId || 'guest'}`;
 
+    // 1. Read cached goals from local storage first
+    let cachedGoals: SavingsGoal[] = [];
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) cachedGoals = parsed;
+      }
+    } catch (_) {}
+
+    // 2. Try Firestore
     if (db && userId && userId !== 'guest_user_demo') {
       try {
         const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1500));
@@ -16,7 +27,7 @@ export const goalsService = {
           getDocs(collection(db, `users/${userId}/${COLLECTION_NAME}`)),
           timeoutPromise,
         ]);
-        if (!snapshot.empty) {
+        if (snapshot && !snapshot.empty) {
           const list = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...(docSnap.data() as Omit<SavingsGoal, 'id'>),
@@ -29,6 +40,7 @@ export const goalsService = {
       }
     }
 
+    // 3. Try REST API
     try {
       const res = await apiFetch('/goals', {}, userId);
       if (res.ok) {
@@ -42,12 +54,8 @@ export const goalsService = {
       console.warn('REST API fetchGoals notice:', err);
     }
 
-    try {
-      const cached = localStorage.getItem(key);
-      if (cached) return JSON.parse(cached);
-    } catch (_) {}
-
-    return [];
+    // 4. Return cached goals (never lose locally saved goals on refresh!)
+    return cachedGoals;
   },
 
   async addGoal(goalData: Omit<SavingsGoal, 'id'>, userId?: string): Promise<SavingsGoal> {
