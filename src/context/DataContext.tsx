@@ -53,12 +53,13 @@ export interface DataContextType {
 
 const defaultProfile: UserProfile = {
   uid: 'demo_user',
-  displayName: 'Alex Morgan',
-  email: 'alex.morgan@voiceledger.io',
+  displayName: 'User',
+  email: '',
   photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  monthlyBudget: 40000,
+  monthlyBudget: 0,
   currency: '₹',
   theme: 'dark',
+  hasConfiguredBudget: false,
 };
 
 export const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -66,10 +67,9 @@ export const DataContext = createContext<DataContextType | undefined>(undefined)
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isGuest } = useAuth();
   const userId = user?.uid;
-  const isAuthenticated = Boolean(user && user.uid !== 'guest_user_demo' && !isGuest);
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    if (userId) {
+    if (userId && userId !== 'guest_user_demo') {
       const cached = localStorage.getItem(`voiceledger_expenses_${userId}`);
       if (cached) {
         try {
@@ -77,21 +77,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (Array.isArray(parsed)) return parsed;
         } catch (_) {}
       }
+      return [];
     }
-    return isAuthenticated ? [] : mockExpensesList;
+    return isGuest ? mockExpensesList : [];
   });
-  const [goals, setGoals] = useState<SavingsGoal[]>(() => (isAuthenticated ? [] : mockSavingsGoals));
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isAuthenticated ? [] : mockSubscriptions));
-  const [trips, setTrips] = useState<Trip[]>(() => (isAuthenticated ? [] : mockTrips));
-  const [friends, setFriends] = useState<SharedFriend[]>(() => (isAuthenticated ? [] : mockSharedFriends));
-  const [settlements, setSettlements] = useState<SharedSettlement[]>(() => (isAuthenticated ? [] : mockSettlements));
+
+  const [goals, setGoals] = useState<SavingsGoal[]>(() => (isGuest ? mockSavingsGoals : []));
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isGuest ? mockSubscriptions : []));
+  const [trips, setTrips] = useState<Trip[]>(() => (isGuest ? mockTrips : []));
+  const [friends, setFriends] = useState<SharedFriend[]>(() => (isGuest ? mockSharedFriends : []));
+  const [settlements, setSettlements] = useState<SharedSettlement[]>(() => (isGuest ? mockSettlements : []));
+
   const [profile, setProfile] = useState<UserProfile>(() => {
     const savedUid = user?.uid;
     const savedBudget = savedUid ? localStorage.getItem(`voiceledger_budget_${savedUid}`) : null;
     const isConfigured = savedUid ? localStorage.getItem(`voiceledger_configured_${savedUid}`) === 'true' : false;
     return {
       ...defaultProfile,
-      monthlyBudget: savedBudget ? parseFloat(savedBudget) : defaultProfile.monthlyBudget,
+      monthlyBudget: savedBudget ? parseFloat(savedBudget) : 0,
       hasConfiguredBudget: isConfigured,
     };
   });
@@ -117,27 +120,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTrips(fetchedTrips || []);
         setFriends(fetchedShared.friends || []);
         setSettlements(fetchedShared.settlements || []);
+
         const savedBudget = userId ? localStorage.getItem(`voiceledger_budget_${userId}`) : null;
         const isConfigured = userId ? localStorage.getItem(`voiceledger_configured_${userId}`) === 'true' : false;
 
-        if (fetchedProfile) {
-          setProfile((prev) => ({
-            ...prev,
-            ...fetchedProfile,
-            monthlyBudget: fetchedProfile.monthlyBudget || (savedBudget ? parseFloat(savedBudget) : prev.monthlyBudget),
-            hasConfiguredBudget: fetchedProfile.hasConfiguredBudget || isConfigured,
-          }));
-        } else if (user) {
-          setProfile((prev) => ({
-            ...prev,
-            uid: user.uid,
-            displayName: user.displayName || 'User',
-            email: user.email || '',
-            photoURL: user.photoURL || prev.photoURL,
-            monthlyBudget: savedBudget ? parseFloat(savedBudget) : prev.monthlyBudget,
-            hasConfiguredBudget: isConfigured,
-          }));
-        }
+        setProfile((prev) => ({
+          ...prev,
+          uid: userId,
+          displayName: user?.displayName || fetchedProfile?.displayName || prev.displayName,
+          email: user?.email || fetchedProfile?.email || prev.email,
+          photoURL: user?.photoURL || fetchedProfile?.photoURL || prev.photoURL,
+          monthlyBudget: savedBudget ? parseFloat(savedBudget) : (fetchedProfile?.monthlyBudget || 0),
+          hasConfiguredBudget: isConfigured || Boolean(fetchedProfile?.hasConfiguredBudget),
+        }));
       } else {
         // Guest Demo mode: Fallback to mock data preview
         if (fetchedExpenses.length > 0) setExpenses(fetchedExpenses);
@@ -153,7 +148,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [userId, user]);
 
   useEffect(() => {
     refreshData();

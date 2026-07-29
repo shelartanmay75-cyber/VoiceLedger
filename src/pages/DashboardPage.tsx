@@ -33,12 +33,14 @@ export const DashboardPage: React.FC = () => {
 
   const isGuestBudgetConfigured = isGuest && (
     profile.hasConfiguredBudget ||
+    profile.monthlyBudget > 0 ||
     localStorage.getItem('voiceledger_configured_guest_user_demo') === 'true' ||
     sessionStorage.getItem('voiceledger_guest_budget_configured') === 'true'
   );
 
   const isUserBudgetConfigured = Boolean(
     profile.hasConfiguredBudget ||
+    profile.monthlyBudget > 0 ||
     (user?.uid && localStorage.getItem(`voiceledger_configured_${user.uid}`) === 'true')
   );
 
@@ -48,9 +50,9 @@ export const DashboardPage: React.FC = () => {
 
   // Dynamic spending calculations from real user expenses
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const monthlyBudget = profile.monthlyBudget || 40000;
+  const monthlyBudget = profile.monthlyBudget || 0;
   const remainingBudget = Math.max(0, monthlyBudget - totalSpent);
-  const percentageUsed = Math.min(100, Math.round((totalSpent / monthlyBudget) * 100));
+  const percentageUsed = monthlyBudget > 0 ? Math.min(100, Math.round((totalSpent / monthlyBudget) * 100)) : 0;
   const recentTransactions = expenses.slice(0, 5);
 
   // Today's spending calculation
@@ -185,15 +187,26 @@ export const DashboardPage: React.FC = () => {
       subtitle="Here is your financial overview and voice expense tracker dashboard."
       badge="Voice Ledger AI"
       actionSlot={
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => setIsAddExpenseModalOpen(true)}
-          leftIcon={<Plus className="w-4 h-4" />}
-          id="dashboard-new-record-btn"
-        >
-          New Record
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => setIsBudgetModalOpen(true)}
+            leftIcon={<Wallet className="w-4 h-4 text-[#3B82F6]" />}
+            id="dashboard-edit-budget-btn"
+          >
+            {profile.monthlyBudget > 0 ? 'Edit Monthly Budget' : 'Add Monthly Budget'}
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setIsAddExpenseModalOpen(true)}
+            leftIcon={<Plus className="w-4 h-4" />}
+            id="dashboard-new-record-btn"
+          >
+            New Record
+          </Button>
+        </div>
       }
     >
       <div className="space-y-6">
