@@ -23,9 +23,13 @@ export const ProfilePage: React.FC = () => {
   const { profile, updateProfile } = useData();
   const navigate = useNavigate();
 
-  const [monthlyBudget, setMonthlyBudget] = useState(profile.monthlyBudget?.toString() || '40000');
+  const [monthlyBudget, setMonthlyBudget] = useState(profile.monthlyBudget?.toString() || '0');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  React.useEffect(() => {
+    setMonthlyBudget(profile.monthlyBudget?.toString() || '0');
+  }, [profile.monthlyBudget]);
 
   const handleSaveBudget = async (e: React.FormEvent) => {
     e.preventDefault();
