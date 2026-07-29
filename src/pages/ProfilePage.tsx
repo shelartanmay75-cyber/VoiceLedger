@@ -31,18 +31,13 @@ export const ProfilePage: React.FC = () => {
     setMonthlyBudget(profile.monthlyBudget?.toString() || '0');
   }, [profile.monthlyBudget]);
 
-  const handleSaveBudget = async (e: React.FormEvent) => {
+  const handleSaveBudget = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    try {
-      await updateProfile({ monthlyBudget: parseFloat(monthlyBudget) || 40000 });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (err) {
-      console.error('Error updating profile:', err);
-    } finally {
-      setIsSaving(false);
-    }
+    updateProfile({ monthlyBudget: parseFloat(monthlyBudget) || 0 });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+    setIsSaving(false);
   };
 
   const handleLogout = async () => {

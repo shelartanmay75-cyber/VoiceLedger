@@ -15,7 +15,6 @@ export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = (
   const { profile, updateProfile } = useData();
   const { user, isGuest } = useAuth();
   const [budgetInput, setBudgetInput] = useState<string>('');
-  const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = Boolean(profile.monthlyBudget && profile.monthlyBudget > 0);
 
@@ -30,13 +29,13 @@ export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = (
 
   const quickOptions = [10000, 25000, 50000, 100000];
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const numericValue = parseFloat(budgetInput);
     if (isNaN(numericValue) || numericValue <= 0) return;
 
-    setIsSaving(true);
-    await updateProfile({
+    // 1. Trigger local profile update instantly (0ms latency)
+    updateProfile({
       monthlyBudget: numericValue,
       hasConfiguredBudget: true,
     });
@@ -51,7 +50,7 @@ export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = (
       sessionStorage.setItem('voiceledger_guest_budget_configured', 'true');
     }
 
-    setIsSaving(false);
+    // 2. Close modal immediately with zero UI delay
     onClose();
   };
 
@@ -108,7 +107,6 @@ export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = (
                 placeholder="25000"
                 leftIcon={<span className="text-sm font-bold text-slate-400">₹</span>}
                 required
-                min="100"
                 className="text-lg font-bold"
               />
             </div>
@@ -149,10 +147,9 @@ export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = (
                 variant="primary"
                 size="lg"
                 className="w-2/3 font-bold shadow-lg shadow-[#3B82F6]/25"
-                disabled={isSaving}
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
-                {isSaving ? 'Saving...' : isEditing ? 'Update Budget' : 'Save Budget'}
+                {isEditing ? 'Update Budget' : 'Save Budget'}
               </Button>
             </div>
           </form>

@@ -244,18 +244,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Profile update
+  // Profile update with zero-latency optimistic state response
   const updateProfile = async (profileData: Partial<UserProfile>) => {
+    // 1. Instantly update React state (0ms UI latency!)
+    setProfile((prev) => ({ ...prev, ...profileData }));
+
+    // 2. Instantly update local storage
     if (userId) {
-      if (profileData.monthlyBudget) {
+      if (profileData.monthlyBudget !== undefined) {
         localStorage.setItem(`voiceledger_budget_${userId}`, String(profileData.monthlyBudget));
       }
       if (profileData.hasConfiguredBudget !== undefined) {
         localStorage.setItem(`voiceledger_configured_${userId}`, String(profileData.hasConfiguredBudget));
       }
     }
-    const updated = await profileService.updateProfile(profileData, userId);
-    setProfile((prev) => ({ ...prev, ...updated }));
+
+    // 3. Sync backend in background asynchronously without blocking UI
+    profileService.updateProfile(profileData, userId).catch((err) => {
+      console.warn('Background profile sync error:', err);
+    });
   };
 
   return (
