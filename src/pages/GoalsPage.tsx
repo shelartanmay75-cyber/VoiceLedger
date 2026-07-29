@@ -10,15 +10,18 @@ import {
   Award,
   Sparkles,
   X,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useData } from '../context/DataContext';
+import type { SavingsGoal } from '../types/featurePages';
 
 export const GoalsPage: React.FC = () => {
-  const { goals, addGoal, depositToGoal } = useData();
+  const { goals, addGoal, updateGoal, depositToGoal, deleteGoal } = useData();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [depositGoalId, setDepositGoalId] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState('');
@@ -26,8 +29,15 @@ export const GoalsPage: React.FC = () => {
   // Add goal state
   const [goalTitle, setGoalTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
-  const targetDate = 'Dec 2026';
+  const [targetDate, setTargetDate] = useState('Dec 2026');
   const [targetCategory, setTargetCategory] = useState('Safety');
+
+  // Edit goal state
+  const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editTargetAmount, setEditTargetAmount] = useState('');
+  const [editTargetDate, setEditTargetDate] = useState('Dec 2026');
+  const [editCategory, setEditCategory] = useState('Safety');
 
   const totalGoalsSaved = goals.reduce((acc, curr) => acc + curr.currentAmount, 0);
 
@@ -39,7 +49,7 @@ export const GoalsPage: React.FC = () => {
       title: goalTitle,
       targetAmount: parseFloat(targetAmount),
       currentAmount: 0,
-      targetDate,
+      targetDate: targetDate || 'Dec 2026',
       category: targetCategory,
       iconName: targetCategory === 'Travel' ? 'Plane' : targetCategory === 'Electronics' ? 'Laptop' : 'ShieldCheck',
       color: targetCategory === 'Travel' ? 'from-[#F59E0B] to-[#D97706]' : targetCategory === 'Electronics' ? 'from-[#8B5CF6] to-[#6D28D9]' : 'from-[#3B82F6] to-[#1D4ED8]',
@@ -48,6 +58,36 @@ export const GoalsPage: React.FC = () => {
     setGoalTitle('');
     setTargetAmount('');
     setIsAddModalOpen(false);
+  };
+
+  const handleOpenEditModal = (goal: SavingsGoal) => {
+    setEditingGoal(goal);
+    setEditTitle(goal.title);
+    setEditTargetAmount(goal.targetAmount.toString());
+    setEditTargetDate(goal.targetDate || 'Dec 2026');
+    setEditCategory(goal.category || 'Safety');
+  };
+
+  const handleSaveGoalEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGoal || !editTitle || !editTargetAmount) return;
+
+    await updateGoal(editingGoal.id, {
+      title: editTitle,
+      targetAmount: parseFloat(editTargetAmount),
+      targetDate: editTargetDate,
+      category: editCategory,
+      iconName: editCategory === 'Travel' ? 'Plane' : editCategory === 'Electronics' ? 'Laptop' : 'ShieldCheck',
+      color: editCategory === 'Travel' ? 'from-[#F59E0B] to-[#D97706]' : editCategory === 'Electronics' ? 'from-[#8B5CF6] to-[#6D28D9]' : 'from-[#3B82F6] to-[#1D4ED8]',
+    });
+
+    setEditingGoal(null);
+  };
+
+  const handleDeleteGoal = async (goalId: string, title: string) => {
+    if (window.confirm(`Are you sure you want to delete the savings goal "${title}"?`)) {
+      await deleteGoal(goalId);
+    }
   };
 
   const handleDeposit = async (e: React.FormEvent) => {
@@ -165,7 +205,7 @@ export const GoalsPage: React.FC = () => {
                 const percentage = Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100));
 
                 return (
-                  <Card key={goal.id} hoverable className="flex flex-col justify-between space-y-6">
+                  <Card key={goal.id} hoverable className="flex flex-col justify-between space-y-6 relative group">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div
@@ -181,6 +221,24 @@ export const GoalsPage: React.FC = () => {
                             Target: {goal.targetDate}
                           </span>
                         </div>
+                      </div>
+
+                      {/* Edit & Delete Action Buttons */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditModal(goal)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#3B82F6] hover:bg-slate-100 dark:hover:bg-[#0B0F14] transition-colors"
+                          title="Edit Goal"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGoal(goal.id, goal.title)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#EF4444] hover:bg-slate-100 dark:hover:bg-[#0B0F14] transition-colors"
+                          title="Delete Goal"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
@@ -265,6 +323,15 @@ export const GoalsPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Target Date</label>
+                  <Input
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    placeholder="e.g. Dec 2026"
+                  />
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Category</label>
                   <select
                     value={targetCategory}
@@ -280,6 +347,77 @@ export const GoalsPage: React.FC = () => {
 
                 <Button type="submit" variant="primary" size="md" className="w-full">
                   Create Savings Target
+                </Button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Goal Modal */}
+      <AnimatePresence>
+        {editingGoal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] rounded-3xl p-6 space-y-6 relative"
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#222934] pb-4">
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-[#F3F4F6]">Edit Savings Target</h3>
+                <button onClick={() => setEditingGoal(null)} className="text-slate-400 hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveGoalEdit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Goal Title</label>
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="e.g. New Laptop Fund"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Target Amount (₹)</label>
+                  <Input
+                    type="number"
+                    value={editTargetAmount}
+                    onChange={(e) => setEditTargetAmount(e.target.value)}
+                    placeholder="50000"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Target Date</label>
+                  <Input
+                    value={editTargetDate}
+                    onChange={(e) => setEditTargetDate(e.target.value)}
+                    placeholder="e.g. Dec 2026"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-[#D1D5DB]">Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl bg-slate-100 dark:bg-[#0B0F14] border border-slate-200 dark:border-[#222934] text-sm font-semibold text-slate-900 dark:text-[#F3F4F6]"
+                  >
+                    <option value="Safety">Safety & Emergency</option>
+                    <option value="Travel">Travel & Vacation</option>
+                    <option value="Electronics">Electronics & Gadgets</option>
+                    <option value="General">General Savings</option>
+                  </select>
+                </div>
+
+                <Button type="submit" variant="primary" size="md" className="w-full">
+                  Save Goal Changes
                 </Button>
               </form>
             </motion.div>
@@ -317,7 +455,7 @@ export const GoalsPage: React.FC = () => {
                 </div>
 
                 <Button type="submit" variant="primary" size="md" className="w-full">
-                  Confirm Deposit
+                  Confirm Deposit & Deduct Budget
                 </Button>
               </form>
             </motion.div>

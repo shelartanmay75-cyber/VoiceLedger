@@ -94,11 +94,13 @@ export const DashboardPage: React.FC = () => {
     },
     {
       id: 'stat-4',
-      title: 'Savings Goal',
+      title: 'Savings Goals',
       value: goals.length > 0
-        ? `₹${goals[0].currentAmount.toLocaleString('en-IN')} / ₹${goals[0].targetAmount.toLocaleString('en-IN')}`
+        ? `₹${goals.reduce((acc, g) => acc + g.currentAmount, 0).toLocaleString('en-IN')} / ₹${goals.reduce((acc, g) => acc + g.targetAmount, 0).toLocaleString('en-IN')}`
         : '₹0 / ₹0',
-      change: goals.length > 0 ? `${Math.round((goals[0].currentAmount / goals[0].targetAmount) * 100)}% completed` : 'Clean Slate',
+      change: goals.length > 0
+        ? `${Math.round((goals.reduce((acc, g) => acc + g.currentAmount, 0) / Math.max(1, goals.reduce((acc, g) => acc + g.targetAmount, 0))) * 100)}% saved`
+        : 'Clean Slate',
       isPositive: true,
       iconName: 'Target',
     },

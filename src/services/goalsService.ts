@@ -114,6 +114,43 @@ export const goalsService = {
     return newTotal;
   },
 
+  async updateGoal(goalId: string, updatedData: Partial<SavingsGoal>, userId?: string): Promise<SavingsGoal | null> {
+    const key = `voiceledger_goals_${userId || 'guest'}`;
+    let updatedGoal: SavingsGoal | null = null;
+
+    try {
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: SavingsGoal[] = JSON.parse(existing);
+        const updatedList = list.map((g) => {
+          if (g.id === goalId) {
+            updatedGoal = { ...g, ...updatedData };
+            return updatedGoal;
+          }
+          return g;
+        });
+        localStorage.setItem(key, JSON.stringify(updatedList));
+      }
+    } catch (_) {}
+
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, goalId), updatedData);
+        } catch (_) {}
+      }
+
+      try {
+        await apiFetch(`/goals/${goalId}`, {
+          method: 'PUT',
+          body: JSON.stringify(updatedData),
+        }, userId);
+      } catch (_) {}
+    })();
+
+    return updatedGoal;
+  },
+
   async deleteGoal(goalId: string, userId?: string): Promise<boolean> {
     const key = `voiceledger_goals_${userId || 'guest'}`;
 

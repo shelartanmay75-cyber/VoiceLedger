@@ -28,6 +28,7 @@ export interface DataContextType {
 
   // Goals actions
   addGoal: (goal: Omit<SavingsGoal, 'id'>) => Promise<void>;
+  updateGoal: (id: string, goalData: Partial<SavingsGoal>) => Promise<void>;
   depositToGoal: (goalId: string, amount: number, currentAmount: number) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
 
@@ -171,11 +172,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setGoals((prev) => [created, ...prev]);
   };
 
+  const updateGoal = async (id: string, goalData: Partial<SavingsGoal>) => {
+    await goalsService.updateGoal(id, goalData, userId);
+    setGoals((prev) =>
+      prev.map((g) => (g.id === id ? { ...g, ...goalData } : g))
+    );
+  };
+
   const depositToGoal = async (goalId: string, amount: number, currentAmount: number) => {
+    const targetGoal = goals.find((g) => g.id === goalId);
+    const goalTitleStr = targetGoal ? targetGoal.title : 'Savings Target';
+
+    // 1. Update Goal saved amount
     const newAmount = await goalsService.depositToGoal(goalId, amount, currentAmount, userId);
     setGoals((prev) =>
       prev.map((g) => (g.id === goalId ? { ...g, currentAmount: newAmount } : g))
     );
+
+    // 2. Automatically record Goal Deposit as an expense so it deducts from remaining monthly budget!
+    await addExpense({
+      title: `Goal Deposit: ${goalTitleStr}`,
+      amount: amount,
+      category: 'Investments & Savings',
+      date: 'Today',
+      isoDate: new Date().toISOString(),
+      paymentMethod: 'UPI',
+      notes: `Goal deposit added to ${goalTitleStr}`,
+      iconName: 'Target',
+      categoryColor: '#8B5CF6',
+    });
   };
 
   const deleteGoal = async (id: string) => {
@@ -279,6 +304,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addExpense,
         deleteExpense,
         addGoal,
+        updateGoal,
         depositToGoal,
         deleteGoal,
         addSubscription,
