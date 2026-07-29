@@ -232,8 +232,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteGoal = async (id: string) => {
+    const targetGoal = goals.find((g) => g.id === id);
+    const goalTitleStr = targetGoal ? targetGoal.title.toLowerCase() : '';
+
+    // 1. Delete Goal from goals service & state
     await goalsService.deleteGoal(id, userId);
     setGoals((prev) => prev.filter((g) => g.id !== id));
+
+    // 2. Cascade delete all associated Goal Deposit expenses for this goal to restore monthly budget!
+    if (goalTitleStr) {
+      const expensesToDelete = expenses.filter((e) => {
+        const titleLower = (e.title || '').toLowerCase();
+        const notesLower = (e.notes || '').toLowerCase();
+        return (
+          titleLower === `goal deposit: ${goalTitleStr}` ||
+          titleLower.includes(`goal deposit: ${goalTitleStr}`) ||
+          notesLower.includes(`goal deposit added to ${goalTitleStr}`) ||
+          notesLower.includes(`to savings goal ${goalTitleStr}`)
+        );
+      });
+
+      for (const exp of expensesToDelete) {
+        await deleteExpense(exp.id);
+      }
+    }
   };
 
   // Subscriptions CRUD
