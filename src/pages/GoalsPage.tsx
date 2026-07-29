@@ -9,17 +9,16 @@ import {
   TrendingUp,
   Award,
   Sparkles,
-  PieChart,
   X,
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useData } from '../context/DataContext';
 
 export const GoalsPage: React.FC = () => {
-  const { goals, expenses, profile, addGoal, depositToGoal } = useData();
+  const { goals, addGoal, depositToGoal } = useData();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [depositGoalId, setDepositGoalId] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState('');
@@ -75,30 +74,10 @@ export const GoalsPage: React.FC = () => {
     }
   };
 
-  // Dynamic Category Caps calculated from expenses
-  const categorySpentMap: { [key: string]: number } = {};
-  expenses.forEach((e) => {
-    categorySpentMap[e.category] = (categorySpentMap[e.category] || 0) + e.amount;
-  });
-
-  const categories = ['Food & Beverages', 'Transportation', 'Bills & Subscriptions', 'Shopping', 'Miscellaneous'];
-  const monthlyBudget = profile.monthlyBudget || 40000;
-
-  const dynamicCategoryBudgets = categories.map((cat, idx) => {
-    const allocatedAmount = Math.round(monthlyBudget * (idx === 0 ? 0.35 : idx === 1 ? 0.25 : idx === 2 ? 0.15 : 0.15));
-    const spentAmount = categorySpentMap[cat] || 0;
-    return {
-      id: `cb-${idx}`,
-      category: cat,
-      spentAmount,
-      allocatedAmount,
-    };
-  });
-
   return (
     <PageContainer
-      title="Financial Goals & Budget Caps"
-      subtitle="Track your long-term savings goals, emergency funds, and monthly category budget allocations."
+      title="Financial Savings Targets & Goals"
+      subtitle="Track your long-term savings goals, emergency funds, and investment milestones."
       badge="Smart Planning"
       actionSlot={
         <Button variant="primary" size="md" onClick={() => setIsAddModalOpen(true)} leftIcon={<Plus className="w-4 h-4" />}>
@@ -244,58 +223,6 @@ export const GoalsPage: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* ------------------------------------------------------------- */}
-        {/* 3. MONTHLY CATEGORY BUDGET CARDS                              */}
-        {/* ------------------------------------------------------------- */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-[#3B82F6]" />
-                Monthly Category Budget Caps
-              </CardTitle>
-              <span className="text-xs font-semibold text-[#3B82F6]">Current Month</span>
-            </div>
-            <CardDescription>Allocated monthly spending caps per category</CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {dynamicCategoryBudgets.map((b) => {
-                const usedPct = Math.min(100, Math.round((b.spentAmount / b.allocatedAmount) * 100));
-
-                return (
-                  <div
-                    key={b.id}
-                    className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0B0F14]/60 border border-slate-200/80 dark:border-[#222934]/60 space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-900 dark:text-[#F3F4F6]">
-                        {b.category}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-500 dark:text-[#9CA3AF]">
-                        {usedPct}% Used
-                      </span>
-                    </div>
-
-                    <div className="w-full h-2 bg-slate-200 dark:bg-[#222934] rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${usedPct}%` }}
-                        className={`h-full rounded-full ${usedPct > 90 ? 'bg-[#EF4444]' : 'bg-[#3B82F6]'}`}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span>Spent: ₹{b.spentAmount.toLocaleString('en-IN')}</span>
-                      <span>Cap: ₹{b.allocatedAmount.toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Create Goal Modal */}
