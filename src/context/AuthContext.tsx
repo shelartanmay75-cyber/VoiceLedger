@@ -178,6 +178,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       saveUserSession(null);
       setIsGuest(false);
       localStorage.removeItem(GUEST_STORAGE_KEY);
+      localStorage.removeItem('voiceledger_configured_guest_user_demo');
+      sessionStorage.removeItem('voiceledger_guest_budget_configured');
     } catch (error) {
       console.error('Error signing out:', error);
     } finally {

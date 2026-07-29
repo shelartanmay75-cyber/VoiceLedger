@@ -31,12 +31,20 @@ export const DashboardPage: React.FC = () => {
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(true);
 
-  const isBudgetAlreadyConfigured = Boolean(
+  const isGuestBudgetConfigured = isGuest && (
+    profile.hasConfiguredBudget ||
+    localStorage.getItem('voiceledger_configured_guest_user_demo') === 'true' ||
+    sessionStorage.getItem('voiceledger_guest_budget_configured') === 'true'
+  );
+
+  const isUserBudgetConfigured = Boolean(
     profile.hasConfiguredBudget ||
     (user?.uid && localStorage.getItem(`voiceledger_configured_${user.uid}`) === 'true')
   );
 
-  const isNewUserBudgetNeeded = !isLoading && !isGuest && Boolean(user) && !isBudgetAlreadyConfigured;
+  const isBudgetAlreadyConfigured = isGuest ? isGuestBudgetConfigured : isUserBudgetConfigured;
+
+  const isNewUserBudgetNeeded = !isLoading && Boolean(user || isGuest) && !isBudgetAlreadyConfigured;
 
   // Dynamic spending calculations from real user expenses
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Sparkles, ArrowRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
@@ -12,6 +13,7 @@ interface MonthlyBudgetSetupModalProps {
 
 export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = ({ isOpen, onClose }) => {
   const { profile, updateProfile } = useData();
+  const { user, isGuest } = useAuth();
   const [budgetInput, setBudgetInput] = useState<string>(profile.monthlyBudget?.toString() || '40000');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -29,6 +31,15 @@ export const MonthlyBudgetSetupModal: React.FC<MonthlyBudgetSetupModalProps> = (
       monthlyBudget: numericValue,
       hasConfiguredBudget: true,
     });
+
+    if (user?.uid) {
+      localStorage.setItem(`voiceledger_configured_${user.uid}`, 'true');
+    }
+    if (isGuest) {
+      localStorage.setItem('voiceledger_configured_guest_user_demo', 'true');
+      sessionStorage.setItem('voiceledger_guest_budget_configured', 'true');
+    }
+
     setIsSaving(false);
     onClose();
   };
