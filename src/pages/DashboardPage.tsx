@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus,
@@ -29,7 +29,7 @@ export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
   const { expenses, goals, profile, isLoading } = useData();
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
-  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(true);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
   const isGuestBudgetConfigured = isGuest && (
     profile.hasConfiguredBudget ||
@@ -46,7 +46,12 @@ export const DashboardPage: React.FC = () => {
 
   const isBudgetAlreadyConfigured = isGuest ? isGuestBudgetConfigured : isUserBudgetConfigured;
 
-  const isNewUserBudgetNeeded = !isLoading && Boolean(user || isGuest) && !isBudgetAlreadyConfigured;
+  // Auto-prompt budget setup modal for new unconfigured users on initial load
+  useEffect(() => {
+    if (!isLoading && Boolean(user || isGuest) && !isBudgetAlreadyConfigured) {
+      setIsBudgetModalOpen(true);
+    }
+  }, [isLoading, user, isGuest, isBudgetAlreadyConfigured]);
 
   // Dynamic spending calculations from real user expenses
   const totalSpent = expenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -461,9 +466,9 @@ export const DashboardPage: React.FC = () => {
         onClose={() => setIsAddExpenseModalOpen(false)}
       />
 
-      {/* New User Monthly Budget Setup Modal */}
+      {/* Monthly Budget Setup & Edit Modal */}
       <MonthlyBudgetSetupModal
-        isOpen={Boolean(isNewUserBudgetNeeded && isBudgetModalOpen)}
+        isOpen={isBudgetModalOpen}
         onClose={() => setIsBudgetModalOpen(false)}
       />
     </PageContainer>
