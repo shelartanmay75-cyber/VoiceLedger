@@ -112,8 +112,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (_) {}
     return isGuest ? mockTrips : [];
   });
-  const [friends, setFriends] = useState<SharedFriend[]>(() => (isGuest ? mockSharedFriends : []));
-  const [settlements, setSettlements] = useState<SharedSettlement[]>(() => (isGuest ? mockSettlements : []));
+  const [friends, setFriends] = useState<SharedFriend[]>(() => {
+    const targetUid = userId || 'guest';
+    const key = `voiceledger_friends_${targetUid}`;
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return isGuest ? mockSharedFriends : [];
+  });
+
+  const [settlements, setSettlements] = useState<SharedSettlement[]>(() => {
+    const targetUid = userId || 'guest';
+    const key = `voiceledger_settlements_${targetUid}`;
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return isGuest ? mockSettlements : [];
+  });
 
   const [profile, setProfile] = useState<UserProfile>(() => {
     const savedUid = user?.uid;
@@ -162,8 +185,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         setSubscriptions(fetchedSubs || []);
         setTrips(fetchedTrips || []);
-        setFriends(fetchedShared.friends || []);
-        setSettlements(fetchedShared.settlements || []);
+        if (fetchedShared.friends && fetchedShared.friends.length > 0) {
+          setFriends(fetchedShared.friends);
+        } else {
+          const key = `voiceledger_friends_${userId || 'guest'}`;
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed)) setFriends(parsed);
+            } catch (_) {}
+          }
+        }
+
+        if (fetchedShared.settlements && fetchedShared.settlements.length > 0) {
+          setSettlements(fetchedShared.settlements);
+        } else {
+          const key = `voiceledger_settlements_${userId || 'guest'}`;
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed)) setSettlements(parsed);
+            } catch (_) {}
+          }
+        }
 
         const savedBudget = userId ? localStorage.getItem(`voiceledger_budget_${userId}`) : null;
         const isConfigured = userId ? localStorage.getItem(`voiceledger_configured_${userId}`) === 'true' : false;

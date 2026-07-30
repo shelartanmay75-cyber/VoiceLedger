@@ -14,7 +14,6 @@ export const SharedExpensesPage: React.FC = () => {
   // Add friend state
   const [isAddFriendModalOpen, setIsAddFriendModalOpen] = useState(false);
   const [friendName, setFriendName] = useState('');
-  const [friendEmail, setFriendEmail] = useState('');
   const [debtType, setDebtType] = useState<'you_owe' | 'you_are_owed'>('you_owe');
   const [initialAmount, setInitialAmount] = useState('');
 
@@ -36,13 +35,11 @@ export const SharedExpensesPage: React.FC = () => {
 
     await addFriend({
       name: friendName,
-      email: friendEmail || `${friendName.toLowerCase().replace(/\s+/g, '')}@gmail.com`,
       balance,
       statusText,
     });
 
     setFriendName('');
-    setFriendEmail('');
     setDebtType('you_owe');
     setInitialAmount('');
     setIsAddFriendModalOpen(false);
@@ -160,11 +157,8 @@ export const SharedExpensesPage: React.FC = () => {
                         {friend.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div className="flex flex-col text-left overflow-hidden">
-                        <span className="text-xs font-bold text-slate-900 dark:text-[#F3F4F6] truncate">
+                        <span className="text-sm font-extrabold text-slate-900 dark:text-[#F3F4F6] truncate">
                           {friend.name}
-                        </span>
-                        <span className="text-[10px] text-slate-400 truncate mt-0.5">
-                          {friend.email}
                         </span>
                       </div>
                     </div>
@@ -302,14 +296,6 @@ export const SharedExpensesPage: React.FC = () => {
                   value={friendName}
                   onChange={(e) => setFriendName(e.target.value)}
                   required
-                />
-
-                <Input
-                  label="Email Address (Optional)"
-                  type="email"
-                  placeholder="rahul@example.com"
-                  value={friendEmail}
-                  onChange={(e) => setFriendEmail(e.target.value)}
                 />
 
                 <div className="space-y-1">
