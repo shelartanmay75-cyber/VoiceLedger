@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuth } from '../hooks/useAuth';
 import { useData } from '../context/DataContext';
+import { MonthlyBudgetSetupModal } from '../components/modals/MonthlyBudgetSetupModal';
 import {
   UserCheck,
   Shield,
@@ -16,16 +18,22 @@ import {
   CheckCircle2,
   IndianRupee,
   Save,
+  Trash2,
+  AlertTriangle,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { user, isGuest, logout } = useAuth();
-  const { profile, updateProfile } = useData();
+  const { profile, updateProfile, resetAllLedgerData } = useData();
   const navigate = useNavigate();
 
   const [monthlyBudget, setMonthlyBudget] = useState(profile.monthlyBudget?.toString() || '0');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
   React.useEffect(() => {
     setMonthlyBudget(profile.monthlyBudget?.toString() || '0');
@@ -38,6 +46,12 @@ export const ProfilePage: React.FC = () => {
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000);
     setIsSaving(false);
+  };
+
+  const handleConfirmResetAll = async () => {
+    await resetAllLedgerData();
+    setIsResetConfirmOpen(false);
+    setIsBudgetModalOpen(true);
   };
 
   const handleLogout = async () => {
@@ -231,7 +245,93 @@ export const ProfilePage: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* DANGER ZONE & RESET ALL LEDGER DATA CARD */}
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-red-500">
+              <AlertTriangle className="w-5 h-5" />
+              <CardTitle className="text-red-500">Danger Zone & Ledger Reset</CardTitle>
+            </div>
+            <CardDescription>
+              Wipe all recorded expenses, goals, trips, subscriptions, and split balances to start fresh all over again.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-[#151A21] border border-red-200 dark:border-red-900/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-1 text-center sm:text-left">
+                <h4 className="text-sm font-extrabold text-slate-900 dark:text-[#F3F4F6]">
+                  Delete All Ledger Data & Start Fresh
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-[#9CA3AF]">
+                  This will permanently clear all your expenses, goals, trips, and split debts so you can configure a brand new monthly budget.
+                </p>
+              </div>
+
+              <Button
+                variant="danger"
+                size="md"
+                onClick={() => setIsResetConfirmOpen(true)}
+                leftIcon={<RotateCcw className="w-4 h-4" />}
+                className="shrink-0 font-bold bg-[#EF4444] hover:bg-[#DC2626] shadow-lg shadow-[#EF4444]/20"
+                id="delete-all-ledger-restart-btn"
+              >
+                Delete All My Ledger & Restart New
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* CONFIRM RESET ALL MODAL */}
+      <AnimatePresence>
+        {isResetConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsResetConfirmOpen(false)} className="fixed inset-0 bg-slate-900/70 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative z-10 w-full max-w-md bg-white dark:bg-[#151A21] border border-red-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#222934]">
+                <div className="flex items-center gap-2 text-red-500 font-extrabold text-lg">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span>Delete All Ledger & Restart?</span>
+                </div>
+                <button onClick={() => setIsResetConfirmOpen(false)} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs text-slate-600 dark:text-[#9CA3AF] leading-relaxed">
+                  Are you sure you want to delete <strong className="text-slate-900 dark:text-white">ALL</strong> your recorded expenses, savings goals, trips, subscriptions, split balances, and monthly budget?
+                </p>
+                <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-semibold flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 shrink-0" />
+                  <span>This action is permanent and cannot be undone. You will immediately be prompted to set up a new monthly budget.</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <Button type="button" variant="ghost" size="md" onClick={() => setIsResetConfirmOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="md"
+                  onClick={handleConfirmResetAll}
+                  leftIcon={<RotateCcw className="w-4 h-4" />}
+                  className="bg-[#EF4444] hover:bg-[#DC2626] text-white border-none font-bold"
+                >
+                  Yes, Delete Everything & Restart
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MONTHLY BUDGET SETUP MODAL (FOR FRESH RESTART) */}
+      <MonthlyBudgetSetupModal
+        isOpen={isBudgetModalOpen}
+        onClose={() => setIsBudgetModalOpen(false)}
+      />
     </PageContainer>
   );
 };

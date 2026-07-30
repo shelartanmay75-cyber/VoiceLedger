@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { db } from '../config/firebase';
 import { expenseService } from '../services/expenseService';
 import { goalsService } from '../services/goalsService';
 import { subscriptionService } from '../services/subscriptionService';
@@ -51,6 +52,7 @@ export interface DataContextType {
 
   // Profile actions
   updateProfile: (profileData: Partial<UserProfile>) => Promise<void>;
+  resetAllLedgerData: () => Promise<void>;
 
   // Manual refresh
   refreshData: () => Promise<void>;
@@ -527,6 +529,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  // Reset all user data completely and prepare for new setup
+  const resetAllLedgerData = async () => {
+    // 1. Instantly clear React state
+    setExpenses([]);
+    setGoals([]);
+    setSubscriptions([]);
+    setTrips([]);
+    setFriends([]);
+    setSettlements([]);
+    setProfile((prev) => ({
+      ...prev,
+      monthlyBudget: 0,
+      hasConfiguredBudget: false,
+    }));
+
+    // 2. Clear local storage keys
+    const targetUid = userId || 'guest';
+    const keysToRemove = [
+      `voiceledger_expenses_${targetUid}`,
+      `voiceledger_goals_${targetUid}`,
+      `voiceledger_trips_${targetUid}`,
+      `voiceledger_subs_${targetUid}`,
+      `voiceledger_friends_${targetUid}`,
+      `voiceledger_settlements_${targetUid}`,
+      `voiceledger_budget_${targetUid}`,
+      `voiceledger_configured_${targetUid}`,
+      'voiceledger_guest_monthly_budget',
+      'voiceledger_configured_guest_user_demo',
+      'voiceledger_guest_budget_configured',
+    ];
+
+    keysToRemove.forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      } catch (_) {}
+    });
+
+    // 3. Async backend reset
+    if (db && userId && userId !== 'guest_user_demo') {
+      try {
+        await profileService.updateProfile({ monthlyBudget: 0, hasConfiguredBudget: false }, userId);
+      } catch (err) {
+        console.warn('Backend reset notice:', err);
+      }
+    }
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -555,6 +605,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addFriend,
         recordSettlement,
         updateProfile,
+        resetAllLedgerData,
         refreshData,
       }}
     >
