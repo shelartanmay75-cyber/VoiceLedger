@@ -24,6 +24,7 @@ import { Button } from '../components/ui/Button';
 import { AddExpenseModal } from '../components/expenses/AddExpenseModal';
 import { VoiceRecorder } from '../components/voice/VoiceRecorder';
 import { MonthlyBudgetSetupModal } from '../components/modals/MonthlyBudgetSetupModal';
+import { formatExpenseDisplayDate, toISODateString } from '../utils/dateUtils';
 
 export const DashboardPage: React.FC = () => {
   const { user, isGuest } = useAuth();
@@ -61,9 +62,9 @@ export const DashboardPage: React.FC = () => {
   const recentTransactions = expenses.slice(0, 5);
 
   // Today's spending calculation
-  const todayIso = new Date().toISOString().split('T')[0];
+  const todayIso = toISODateString('today');
   const todaySpent = expenses
-    .filter((e) => e.isoDate === todayIso || e.date === 'Today')
+    .filter((e) => (e.isoDate ? toISODateString(e.isoDate) === todayIso : formatExpenseDisplayDate(e.isoDate, e.date) === 'Today'))
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   // Quick stats derived dynamically
@@ -442,7 +443,7 @@ export const DashboardPage: React.FC = () => {
                               {tx.category}
                             </span>
                             <span className="text-[9px] text-slate-500">
-                              • {tx.date}
+                              • {formatExpenseDisplayDate(tx.isoDate, tx.date)}
                             </span>
                           </div>
                         </div>

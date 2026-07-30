@@ -6,6 +6,7 @@ import { Input } from '../ui/Input';
 import { TOP_20_CATEGORIES, PAYMENT_METHODS } from '../../data/mockExpensesData';
 import { useData } from '../../context/DataContext';
 import type { PaymentMethod } from '../../types/expense';
+import { toISODateString, formatDateToStandard } from '../../utils/dateUtils';
 
 export interface AddExpenseModalProps {
   isOpen: boolean;
@@ -29,8 +30,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, onClos
     setIsSubmitting(true);
     try {
       const parsedAmount = parseFloat(amount);
-      const isoDate = new Date(date).toISOString();
-      const formattedDate = new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const isoDate = toISODateString(date);
+      const formattedDate = formatDateToStandard(isoDate);
 
       await addExpense({
         title,

@@ -23,6 +23,7 @@ import { ExpenseSkeleton } from '../components/expenses/ExpenseSkeleton';
 import { EmptyState } from '../components/expenses/EmptyState';
 import { useData } from '../context/DataContext';
 import type { Expense, SortOption } from '../types/expense';
+import { formatExpenseDisplayDate, formatDateToStandard } from '../utils/dateUtils';
 
 const TOP_20_CATEGORIES = [
   'Transportation',
@@ -99,7 +100,7 @@ export const ExpensesPage: React.FC = () => {
       amount: parseFloat(editAmount),
       category: editCategory,
       paymentMethod: editMethod as Expense['paymentMethod'],
-      date: editDate === new Date().toISOString().split('T')[0] ? 'Today' : editDate,
+      date: formatDateToStandard(editDate),
       isoDate: editDate,
       notes: editingExpense.notes || '',
       iconName: editingExpense.iconName || 'Tag',
@@ -170,7 +171,7 @@ export const ExpensesPage: React.FC = () => {
     const groups: { [date: string]: { dateTitle: string; items: Expense[]; subtotal: number } } = {};
 
     filteredExpenses.forEach((expense) => {
-      const dateTitle = expense.date || expense.isoDate || 'Earlier';
+      const dateTitle = formatExpenseDisplayDate(expense.isoDate, expense.date);
 
       if (!groups[dateTitle]) {
         groups[dateTitle] = {

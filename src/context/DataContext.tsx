@@ -11,6 +11,7 @@ import type { SavingsGoal, Subscription, Trip, SharedFriend, SharedSettlement } 
 import type { UserProfile } from '../types/backend';
 import { mockExpensesList } from '../data/mockExpensesData';
 import { mockSavingsGoals, mockSubscriptions, mockTrips, mockSharedFriends, mockSettlements } from '../data/mockFeatureData';
+import { toISODateString, formatDateToStandard } from '../utils/dateUtils';
 
 export interface DataContextType {
   expenses: Expense[];
@@ -236,8 +237,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       title: `Goal Deposit: ${goalTitleStr}`,
       amount: amount,
       category: 'Investments & Savings',
-      date: 'Today',
-      isoDate: new Date().toISOString(),
+      date: formatDateToStandard(new Date().toISOString()),
+      isoDate: toISODateString('today'),
       paymentMethod: 'UPI',
       notes: `Goal deposit added to ${goalTitleStr}`,
       iconName: 'Target',
@@ -320,8 +321,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       title: `Trip Savings Deposit: ${targetTrip.title}`,
       amount: amount,
       category: 'Travel & Vacation',
-      date: 'Today',
-      isoDate: new Date().toISOString(),
+      date: formatDateToStandard(new Date().toISOString()),
+      isoDate: toISODateString('today'),
       paymentMethod: 'UPI',
       notes: `Allocated trip savings deposit for ${targetTrip.title}`,
       iconName: 'Plane',

@@ -22,6 +22,7 @@ import {
   Tag,
 } from 'lucide-react';
 import type { Expense } from '../../types/expense';
+import { formatExpenseDisplayDate } from '../../utils/dateUtils';
 
 export interface ExpenseCardProps {
   expense: Expense;
@@ -124,7 +125,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
 
         {/* Date */}
         <td className="py-3.5 px-4 text-slate-500 dark:text-[#9CA3AF]">
-          {expense.date}
+          {formatExpenseDisplayDate(expense.isoDate, expense.date)}
         </td>
 
         {/* Amount */}
@@ -216,7 +217,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
             <span>{expense.paymentMethod}</span>
           </div>
           <span className="text-[10px] text-slate-400 dark:text-[#6B7280]">
-            {expense.date}
+            {formatExpenseDisplayDate(expense.isoDate, expense.date)}
           </span>
         </div>
 

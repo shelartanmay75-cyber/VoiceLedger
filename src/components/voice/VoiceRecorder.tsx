@@ -21,38 +21,7 @@ export interface VoiceRecorderProps {
   className?: string;
 }
 
-/**
- * Helper to convert date string to ISO YYYY-MM-DD
- */
-function toISODateString(dateStr: string): string {
-  const lower = (dateStr || '').toLowerCase().trim();
-  const today = new Date();
-  const currentYear = today.getFullYear();
-
-  if (lower === 'today' || !lower) {
-    return today.toISOString().split('T')[0];
-  }
-  if (lower === 'yesterday') {
-    const yest = new Date(today.getTime() - 86400000);
-    return yest.toISOString().split('T')[0];
-  }
-
-  const cleanStr = dateStr.replace(/(\d+)(st|nd|rd|th)/i, '$1');
-  let parsed = new Date(cleanStr);
-
-  if (isNaN(parsed.getTime())) {
-    parsed = new Date(`${cleanStr} ${currentYear}`);
-  }
-
-  if (!isNaN(parsed.getTime())) {
-    const yyyy = parsed.getFullYear();
-    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-    const dd = String(parsed.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  return today.toISOString().split('T')[0];
-}
+import { toISODateString, formatDateToStandard } from '../../utils/dateUtils';
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) => {
   const { addExpense } = useData();
@@ -246,11 +215,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ className = '' }) 
 
     try {
       const isoDate = toISODateString(extracted.date);
-      const dateFormatted = extracted.date || new Date(isoDate).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      });
+      const dateFormatted = formatDateToStandard(isoDate);
 
       await addExpense({
         title: extracted.title,
