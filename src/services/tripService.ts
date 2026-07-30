@@ -136,6 +136,40 @@ export const tripService = {
     return newSavedAmount;
   },
 
+  async updateTrip(tripId: string, updatedData: Partial<Trip>, userId?: string): Promise<Partial<Trip>> {
+    const key = `voiceledger_trips_${userId || 'guest'}`;
+
+    try {
+      const existing = localStorage.getItem(key);
+      if (existing) {
+        const list: Trip[] = JSON.parse(existing);
+        const updated = list.map((t) => (t.id === tripId ? { ...t, ...updatedData } : t));
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+    } catch (_) {}
+
+    (async () => {
+      if (db && userId && userId !== 'guest_user_demo') {
+        try {
+          await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, tripId), updatedData);
+        } catch (err) {
+          console.warn('Firestore updateTrip notice:', err);
+        }
+      }
+
+      try {
+        await apiFetch(`/trips/${tripId}`, {
+          method: 'PUT',
+          body: JSON.stringify(updatedData),
+        }, userId);
+      } catch (err) {
+        console.warn('REST API updateTrip notice:', err);
+      }
+    })();
+
+    return updatedData;
+  },
+
   async deleteTrip(tripId: string, userId?: string): Promise<void> {
     const key = `voiceledger_trips_${userId || 'guest'}`;
 

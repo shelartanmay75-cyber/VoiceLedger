@@ -1,16 +1,25 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plane, Plus, MapPin, Calendar, Receipt, Wallet, Compass, X, IndianRupee, Trash2 } from 'lucide-react';
+import { Plane, Plus, MapPin, Calendar, Receipt, Wallet, Compass, X, IndianRupee, Trash2, Pencil } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useData } from '../context/DataContext';
+import type { Trip } from '../types/featurePages';
 
 export const TripsPage: React.FC = () => {
-  const { trips, addTrip, depositToTrip, deleteTrip, addTripExpense } = useData();
+  const { trips, addTrip, updateTrip, depositToTrip, deleteTrip, addTripExpense } = useData();
   const [isAddTripModalOpen, setIsAddTripModalOpen] = useState(false);
   const [activeTripForExpense, setActiveTripForExpense] = useState<string | null>(null);
+
+  // Edit Trip state
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editBudget, setEditBudget] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
 
   // Deposit funds state
   const [depositTripId, setDepositTripId] = useState<string | null>(null);
@@ -57,6 +66,34 @@ export const TripsPage: React.FC = () => {
       setTripBudget('');
       setTripLocation('');
       setIsAddTripModalOpen(false);
+    }
+  };
+
+  const handleOpenEditModal = (trip: Trip) => {
+    setEditingTrip(trip);
+    setEditTitle(trip.title);
+    setEditLocation(trip.location || '');
+    setEditBudget(trip.totalBudget ? trip.totalBudget.toString() : '');
+    setEditStartDate(trip.startDate || '');
+    setEditEndDate(trip.endDate || '');
+  };
+
+  const handleSaveTripEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTrip || !editTitle || !editBudget) return;
+
+    try {
+      await updateTrip(editingTrip.id, {
+        title: editTitle,
+        location: editLocation || 'Vacation',
+        startDate: editStartDate || editingTrip.startDate,
+        endDate: editEndDate || editingTrip.endDate,
+        totalBudget: parseFloat(editBudget),
+      });
+    } catch (err) {
+      console.warn('Error updating trip:', err);
+    } finally {
+      setEditingTrip(null);
     }
   };
 
@@ -198,6 +235,13 @@ export const TripsPage: React.FC = () => {
                     >
                       + Add Trip Expense
                     </Button>
+                    <button
+                      onClick={() => handleOpenEditModal(trip)}
+                      className="p-2 rounded-xl bg-white/10 hover:bg-white/30 text-white transition-colors border border-white/20 shrink-0"
+                      title="Edit Trip"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleDeleteTrip(trip.id, trip.title)}
                       className="p-2 rounded-xl bg-white/10 hover:bg-red-500/80 text-white transition-colors border border-white/20 shrink-0"
@@ -346,6 +390,34 @@ export const TripsPage: React.FC = () => {
                 <div className="pt-3 flex justify-end gap-2">
                   <Button type="button" variant="ghost" onClick={() => setIsAddTripModalOpen(false)}>Cancel</Button>
                   <Button type="submit" variant="primary">Create Trip</Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT TRIP MODAL */}
+      <AnimatePresence>
+        {editingTrip && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingTrip(null)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative z-10 w-full max-w-md bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#222934]">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-[#F3F4F6]">Edit Trip Details</h3>
+                <button onClick={() => setEditingTrip(null)} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+              <form onSubmit={handleSaveTripEdit} className="space-y-4">
+                <Input label="Trip Title" placeholder="e.g. Goa Vacation" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} required />
+                <Input label="Destination / Location" placeholder="e.g. Goa, India" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} />
+                <Input label="Total Budget (₹)" type="number" placeholder="35000" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} leftIcon={<IndianRupee className="w-4 h-4" />} required />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Start Date" placeholder="e.g. 15 Nov 2026" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} />
+                  <Input label="End Date" placeholder="e.g. 20 Nov 2026" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
+                </div>
+                <div className="pt-3 flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setEditingTrip(null)}>Cancel</Button>
+                  <Button type="submit" variant="primary">Save Changes</Button>
                 </div>
               </form>
             </motion.div>
