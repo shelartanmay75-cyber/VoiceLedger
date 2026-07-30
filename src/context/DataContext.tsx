@@ -98,7 +98,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return isGuest ? mockSavingsGoals : [];
   });
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isGuest ? mockSubscriptions : []));
-  const [trips, setTrips] = useState<Trip[]>(() => (isGuest ? mockTrips : []));
+  const [trips, setTrips] = useState<Trip[]>(() => {
+    const targetUid = userId || 'guest';
+    const key = `voiceledger_trips_${targetUid}`;
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return isGuest ? mockTrips : [];
+  });
   const [friends, setFriends] = useState<SharedFriend[]>(() => (isGuest ? mockSharedFriends : []));
   const [settlements, setSettlements] = useState<SharedSettlement[]>(() => (isGuest ? mockSettlements : []));
 

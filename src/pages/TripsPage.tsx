@@ -38,21 +38,26 @@ export const TripsPage: React.FC = () => {
     e.preventDefault();
     if (!tripTitle || !tripBudget) return;
 
-    await addTrip({
-      title: tripTitle,
-      location: tripLocation || 'Vacation',
-      startDate,
-      endDate,
-      totalBudget: parseFloat(tripBudget),
-      savedAmount: 0,
-      status: 'active',
-      travelersCount: 4,
-      coverGradient: 'from-[#06B6D4] to-[#3B82F6]',
-    });
-
-    setTripTitle('');
-    setTripBudget('');
-    setIsAddTripModalOpen(false);
+    try {
+      await addTrip({
+        title: tripTitle,
+        location: tripLocation || 'Vacation',
+        startDate,
+        endDate,
+        totalBudget: parseFloat(tripBudget),
+        savedAmount: 0,
+        status: 'active',
+        travelersCount: 4,
+        coverGradient: 'from-[#06B6D4] to-[#3B82F6]',
+      });
+    } catch (err) {
+      console.warn('Error creating trip:', err);
+    } finally {
+      setTripTitle('');
+      setTripBudget('');
+      setTripLocation('');
+      setIsAddTripModalOpen(false);
+    }
   };
 
   const handleDepositToTrip = async (e: React.FormEvent) => {
