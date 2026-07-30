@@ -46,7 +46,7 @@ export interface DataContextType {
   addTripExpense: (tripId: string, expense: { description: string; amount: number; category: string; paidBy: string; date: string }) => Promise<void>;
 
   // Shared Expenses actions
-  addFriend: (friend: { name: string; email: string }) => Promise<void>;
+  addFriend: (friend: { name: string; email?: string; balance?: number; statusText?: string }) => Promise<void>;
   recordSettlement: (friendName: string, amount: number, type: 'received' | 'paid') => Promise<void>;
 
   // Profile actions
@@ -366,7 +366,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Shared Expenses
-  const addFriend = async (friendData: { name: string; email: string }) => {
+  const addFriend = async (friendData: { name: string; email?: string; balance?: number; statusText?: string }) => {
     const created = await sharedService.addFriend(friendData, userId);
     setFriends((prev) => [created, ...prev]);
   };
@@ -390,6 +390,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return f;
       })
     );
+
+    // 1. If type === 'paid' (You paid money to friend): deduct from monthly budget & log to Expenses page!
+    if (type === 'paid') {
+      await addExpense({
+        title: `Settlement Paid to ${friendName}`,
+        amount: amount,
+        category: 'Shared Expenses',
+        paymentMethod: 'UPI',
+        date: formatDateToStandard(new Date().toISOString()),
+        isoDate: toISODateString('today'),
+        notes: `Paid shared expense settlement to ${friendName}`,
+        iconName: 'UserCheck',
+        categoryColor: 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30',
+      });
+    }
+
+    // 2. If type === 'received' (Friend paid money to you): add to monthly budget (NO changes in expenses or anywhere else)!
+    if (type === 'received') {
+      const currentMonthlyBudget = profile.monthlyBudget || 0;
+      await updateProfile({
+        monthlyBudget: currentMonthlyBudget + amount,
+      });
+    }
   };
 
   // Profile update with zero-latency optimistic state response
