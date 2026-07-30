@@ -74,18 +74,16 @@ export const DataContext = createContext<DataContextType | undefined>(undefined)
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isGuest } = useAuth();
   const userId = user?.uid;
-
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    if (userId && userId !== 'guest_user_demo') {
-      const cached = localStorage.getItem(`voiceledger_expenses_${userId}`);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) return parsed;
-        } catch (_) {}
+    const targetUid = userId || 'guest';
+    const key = `voiceledger_expenses_${targetUid}`;
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached !== null) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
       }
-      return [];
-    }
+    } catch (_) {}
     return isGuest ? mockExpensesList : [];
   });
 
@@ -94,34 +92,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const key = `voiceledger_goals_${targetUid}`;
     try {
       const cached = localStorage.getItem(key);
-      if (cached) {
+      if (cached !== null) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) return parsed;
       }
     } catch (_) {}
     return isGuest ? mockSavingsGoals : [];
   });
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => (isGuest ? mockSubscriptions : []));
+
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
+    const targetUid = userId || 'guest';
+    const key = `voiceledger_subs_${targetUid}`;
+    try {
+      const cached = localStorage.getItem(key);
+      if (cached !== null) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (_) {}
+    return isGuest ? mockSubscriptions : [];
+  });
+
   const [trips, setTrips] = useState<Trip[]>(() => {
     const targetUid = userId || 'guest';
     const key = `voiceledger_trips_${targetUid}`;
     try {
       const cached = localStorage.getItem(key);
-      if (cached) {
+      if (cached !== null) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (_) {}
     return isGuest ? mockTrips : [];
   });
+
   const [friends, setFriends] = useState<SharedFriend[]>(() => {
     const targetUid = userId || 'guest';
     const key = `voiceledger_friends_${targetUid}`;
     try {
       const cached = localStorage.getItem(key);
-      if (cached) {
+      if (cached !== null) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (_) {}
     return isGuest ? mockSharedFriends : [];
@@ -132,18 +144,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const key = `voiceledger_settlements_${targetUid}`;
     try {
       const cached = localStorage.getItem(key);
-      if (cached) {
+      if (cached !== null) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (_) {}
     return isGuest ? mockSettlements : [];
   });
 
   const [profile, setProfile] = useState<UserProfile>(() => {
-    const savedUid = user?.uid;
-    const savedBudget = savedUid ? localStorage.getItem(`voiceledger_budget_${savedUid}`) : null;
-    const isConfigured = savedUid ? localStorage.getItem(`voiceledger_configured_${savedUid}`) === 'true' : false;
+    const savedUid = userId;
+    const savedBudget = savedUid ? localStorage.getItem(`voiceledger_budget_${savedUid}`) : (isGuest ? localStorage.getItem('voiceledger_guest_monthly_budget') : null);
+    const isConfigured = savedUid ? localStorage.getItem(`voiceledger_configured_${savedUid}`) === 'true' : (isGuest ? localStorage.getItem('voiceledger_configured_guest_user_demo') === 'true' : false);
     return {
       ...defaultProfile,
       monthlyBudget: savedBudget ? parseFloat(savedBudget) : 0,
@@ -164,83 +176,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profileService.fetchProfile(userId),
       ]);
 
-      if (userId && userId !== 'guest_user_demo') {
-        // Authenticated Google user
-        setExpenses(fetchedExpenses || []);
-        if (fetchedGoals && fetchedGoals.length > 0) {
-          setGoals(fetchedGoals);
-        } else {
-          // If fetchedGoals is empty, try loading local storage cache before resetting
-          const key = `voiceledger_goals_${userId}`;
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed)) setGoals(parsed);
-              else setGoals([]);
-            } catch (_) {
-              setGoals([]);
-            }
-          } else {
-            setGoals([]);
-          }
+      const targetUid = userId || 'guest';
+      const readCacheOrFallback = (key: string, fetchedData: any, mockFallback: any) => {
+        const cached = localStorage.getItem(key);
+        if (cached !== null) {
+          try { return JSON.parse(cached); } catch (_) {}
         }
-        setSubscriptions(fetchedSubs || []);
-        setTrips(fetchedTrips || []);
-        if (fetchedShared.friends && fetchedShared.friends.length > 0) {
-          setFriends(fetchedShared.friends);
-        } else {
-          const key = `voiceledger_friends_${userId || 'guest'}`;
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed)) setFriends(parsed);
-            } catch (_) {}
-          }
-        }
+        if (fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0) return fetchedData;
+        return isGuest ? mockFallback : [];
+      };
 
-        if (fetchedShared.settlements && fetchedShared.settlements.length > 0) {
-          setSettlements(fetchedShared.settlements);
-        } else {
-          const key = `voiceledger_settlements_${userId || 'guest'}`;
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed)) setSettlements(parsed);
-            } catch (_) {}
-          }
-        }
+      setExpenses(readCacheOrFallback(`voiceledger_expenses_${targetUid}`, fetchedExpenses, mockExpensesList));
+      setGoals(readCacheOrFallback(`voiceledger_goals_${targetUid}`, fetchedGoals, mockSavingsGoals));
+      setSubscriptions(readCacheOrFallback(`voiceledger_subs_${targetUid}`, fetchedSubs, mockSubscriptions));
+      setTrips(readCacheOrFallback(`voiceledger_trips_${targetUid}`, fetchedTrips, mockTrips));
+      setFriends(readCacheOrFallback(`voiceledger_friends_${targetUid}`, fetchedShared?.friends, mockSharedFriends));
+      setSettlements(readCacheOrFallback(`voiceledger_settlements_${targetUid}`, fetchedShared?.settlements, mockSettlements));
 
-        const savedBudget = userId ? localStorage.getItem(`voiceledger_budget_${userId}`) : null;
-        const isConfigured = userId ? localStorage.getItem(`voiceledger_configured_${userId}`) === 'true' : false;
+      const savedBudget = localStorage.getItem(`voiceledger_budget_${targetUid}`) || (isGuest ? localStorage.getItem('voiceledger_guest_monthly_budget') : null);
+      const isConfigured = localStorage.getItem(`voiceledger_configured_${targetUid}`) === 'true' || (isGuest ? localStorage.getItem('voiceledger_configured_guest_user_demo') === 'true' : false);
 
-        setProfile((prev) => ({
-          ...prev,
-          uid: userId,
-          displayName: user?.displayName || fetchedProfile?.displayName || prev.displayName,
-          email: user?.email || fetchedProfile?.email || prev.email,
-          photoURL: user?.photoURL || fetchedProfile?.photoURL || prev.photoURL,
-          monthlyBudget: savedBudget ? parseFloat(savedBudget) : (fetchedProfile?.monthlyBudget || 0),
-          hasConfiguredBudget: isConfigured || Boolean(fetchedProfile?.hasConfiguredBudget),
-        }));
-      } else {
-        // Guest Demo mode: Fallback to mock data preview
-        if (fetchedExpenses.length > 0) setExpenses(fetchedExpenses);
-        if (fetchedGoals.length > 0) setGoals(fetchedGoals);
-        if (fetchedSubs.length > 0) setSubscriptions(fetchedSubs);
-        if (fetchedTrips.length > 0) setTrips(fetchedTrips);
-        if (fetchedShared.friends.length > 0) setFriends(fetchedShared.friends);
-        if (fetchedShared.settlements.length > 0) setSettlements(fetchedShared.settlements);
-        if (fetchedProfile) setProfile((prev) => ({ ...prev, ...fetchedProfile }));
-      }
+      setProfile((prev) => ({
+        ...prev,
+        uid: userId || prev.uid,
+        displayName: user?.displayName || fetchedProfile?.displayName || prev.displayName,
+        email: user?.email || fetchedProfile?.email || prev.email,
+        photoURL: user?.photoURL || fetchedProfile?.photoURL || prev.photoURL,
+        monthlyBudget: savedBudget ? parseFloat(savedBudget) : (fetchedProfile?.monthlyBudget || 0),
+        hasConfiguredBudget: isConfigured || Boolean(fetchedProfile?.hasConfiguredBudget),
+      }));
     } catch (err) {
-      console.warn('Error loading backend data:', err);
+      console.warn('Error loading data:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [userId, user]);
+  }, [userId, user, isGuest]);
 
   useEffect(() => {
     refreshData();
@@ -544,15 +514,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       hasConfiguredBudget: false,
     }));
 
-    // 2. Clear local storage keys
+    // 2. Clear local storage keys by explicitly setting empty arrays so mock data is not restored
     const targetUid = userId || 'guest';
-    const keysToRemove = [
+    const featureDataKeys = [
       `voiceledger_expenses_${targetUid}`,
       `voiceledger_goals_${targetUid}`,
       `voiceledger_trips_${targetUid}`,
       `voiceledger_subs_${targetUid}`,
       `voiceledger_friends_${targetUid}`,
       `voiceledger_settlements_${targetUid}`,
+      'voiceledger_expenses_guest',
+      'voiceledger_goals_guest',
+      'voiceledger_trips_guest',
+      'voiceledger_subs_guest',
+      'voiceledger_friends_guest',
+      'voiceledger_settlements_guest',
+    ];
+
+    featureDataKeys.forEach((k) => {
+      try {
+        localStorage.setItem(k, JSON.stringify([]));
+      } catch (_) {}
+    });
+
+    const budgetKeysToRemove = [
       `voiceledger_budget_${targetUid}`,
       `voiceledger_configured_${targetUid}`,
       'voiceledger_guest_monthly_budget',
@@ -560,7 +545,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       'voiceledger_guest_budget_configured',
     ];
 
-    keysToRemove.forEach((k) => {
+    budgetKeysToRemove.forEach((k) => {
       try {
         localStorage.removeItem(k);
         sessionStorage.removeItem(k);
