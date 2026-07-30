@@ -415,6 +415,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addFriend = async (friendData: { name: string; email?: string; balance?: number; statusText?: string }) => {
     const created = await sharedService.addFriend(friendData, userId);
     setFriends((prev) => [created, ...prev]);
+
+    // If 'You are owed' (balance > 0), money was lent out so record it as an expense to deduct from remaining budget!
+    if (friendData.balance && friendData.balance > 0) {
+      const lentAmount = friendData.balance;
+      await addExpense({
+        title: `Shared Expense Lent to ${friendData.name}`,
+        amount: lentAmount,
+        category: 'Shared Expenses',
+        paymentMethod: 'UPI',
+        date: formatDateToStandard(new Date().toISOString()),
+        isoDate: toISODateString('today'),
+        notes: `Lent money to ${friendData.name}`,
+        iconName: 'UserCheck',
+        categoryColor: 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30',
+      });
+    }
   };
 
   const recordSettlement = async (friendName: string, amount: number, type: 'received' | 'paid') => {
@@ -437,7 +453,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    // 1. If type === 'paid' (You paid money to friend): deduct from monthly budget & log to Expenses page!
+    // 1. If type === 'paid' (You paid your debt to friend): deduct from remaining budget by logging expense
     if (type === 'paid') {
       await addExpense({
         title: `Settlement Paid to ${friendName}`,
@@ -452,12 +468,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
 
-    // 2. If type === 'received' (Friend paid money to you): add to monthly budget (NO changes in expenses or anywhere else)!
+    // 2. If type === 'received' (Friend repaid money owed to you):
+    // Remove lent expense to reduce total spent and reflect money back in remaining budget (without affecting monthly budget target)!
     if (type === 'received') {
-      const currentMonthlyBudget = profile.monthlyBudget || 0;
-      await updateProfile({
-        monthlyBudget: currentMonthlyBudget + amount,
+      const targetNameLower = friendName.toLowerCase();
+      const lentExpenses = expenses.filter((e) => {
+        const titleLower = (e.title || '').toLowerCase();
+        const notesLower = (e.notes || '').toLowerCase();
+        return (
+          titleLower.includes(`lent to ${targetNameLower}`) ||
+          notesLower.includes(`lent money to ${targetNameLower}`) ||
+          titleLower.includes(`shared expense lent to ${targetNameLower}`)
+        );
       });
+
+      let remainingToRemove = amount;
+      for (const exp of lentExpenses) {
+        if (remainingToRemove <= 0) break;
+        await deleteExpense(exp.id);
+        remainingToRemove -= exp.amount;
+      }
+
+      // If no matching lent expense was found, log a negative expense adjustment so total spent decreases & remaining budget increases!
+      if (remainingToRemove > 0 && lentExpenses.length === 0) {
+        await addExpense({
+          title: `Settlement Repaid by ${friendName}`,
+          amount: -remainingToRemove,
+          category: 'Shared Expenses',
+          paymentMethod: 'UPI',
+          date: formatDateToStandard(new Date().toISOString()),
+          isoDate: toISODateString('today'),
+          notes: `Repayment received from ${friendName}`,
+          iconName: 'UserCheck',
+          categoryColor: 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30',
+        });
+      }
     }
   };
 
