@@ -87,6 +87,7 @@ export const mockCategoryBudgets: MonthlyCategoryBudget[] = [
   { id: 'b-4', category: 'Bills & Subscriptions', allocatedAmount: 4000, spentAmount: 3149, iconName: 'Tv' },
 ];
 
+export interface MockTripsPlaceholder {}
 export const mockTrips: Trip[] = [
   {
     id: 'trip-1',
@@ -96,6 +97,7 @@ export const mockTrips: Trip[] = [
     endDate: '20 Nov 2026',
     totalBudget: 35000,
     totalSpent: 21400,
+    savedAmount: 24500,
     status: 'active',
     travelersCount: 4,
     coverGradient: 'from-[#06B6D4] to-[#3B82F6]',
@@ -113,6 +115,7 @@ export const mockTrips: Trip[] = [
     endDate: '18 Dec 2026',
     totalBudget: 45000,
     totalSpent: 8500,
+    savedAmount: 15000,
     status: 'upcoming',
     travelersCount: 3,
     coverGradient: 'from-[#3B82F6] to-[#1E3A8A]',

@@ -39,6 +39,8 @@ export interface DataContextType {
 
   // Trips actions
   addTrip: (trip: Omit<Trip, 'id' | 'totalSpent' | 'expensesList'>) => Promise<void>;
+  depositToTrip: (tripId: string, amount: number) => Promise<void>;
+  deleteTrip: (id: string) => Promise<void>;
   addTripExpense: (tripId: string, expense: { description: string; amount: number; category: string; paidBy: string; date: string }) => Promise<void>;
 
   // Shared Expenses actions
@@ -280,6 +282,92 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addTrip = async (tripData: Omit<Trip, 'id' | 'totalSpent' | 'expensesList'>) => {
     const created = await tripService.addTrip(tripData, userId);
     setTrips((prev) => [created, ...prev]);
+
+    // Also automatically create a corresponding Travel Goal in Goals page
+    try {
+      await addGoal({
+        title: `${tripData.title} Vacation`,
+        targetAmount: tripData.totalBudget,
+        currentAmount: tripData.savedAmount || 0,
+        targetDate: tripData.endDate || 'Dec 2026',
+        category: 'Travel',
+        iconName: 'Plane',
+        color: tripData.coverGradient || 'from-[#06B6D4] to-[#3B82F6]',
+      });
+    } catch (err) {
+      console.warn('Failed to auto-create matching travel goal:', err);
+    }
+  };
+
+  const depositToTrip = async (tripId: string, amount: number) => {
+    const targetTrip = trips.find((t) => t.id === tripId);
+    if (!targetTrip) return;
+
+    const currentSaved = targetTrip.savedAmount || 0;
+    const newSavedAmount = await tripService.depositToTrip(tripId, amount, currentSaved, userId);
+
+    // 1. Update trip saved amount in local React state
+    setTrips((prev) =>
+      prev.map((t) => (t.id === tripId ? { ...t, savedAmount: newSavedAmount } : t))
+    );
+
+    // 2. Sync with matching Travel Goal if exists
+    const matchingGoal = goals.find(
+      (g) => g.title.toLowerCase().includes(targetTrip.title.toLowerCase()) ||
+             targetTrip.title.toLowerCase().includes(g.title.toLowerCase())
+    );
+    if (matchingGoal) {
+      const updatedGoalAmount = matchingGoal.currentAmount + amount;
+      await goalsService.updateGoal(matchingGoal.id, { currentAmount: updatedGoalAmount }, userId);
+      setGoals((prev) =>
+        prev.map((g) => (g.id === matchingGoal.id ? { ...g, currentAmount: updatedGoalAmount } : g))
+      );
+    }
+
+    // 3. Automatically record Trip Savings Deposit as an expense so it deducts from remaining monthly budget!
+    await addExpense({
+      title: `Trip Savings Deposit: ${targetTrip.title}`,
+      amount: amount,
+      category: 'Travel & Vacation',
+      date: 'Today',
+      isoDate: new Date().toISOString(),
+      paymentMethod: 'UPI',
+      notes: `Allocated trip savings deposit for ${targetTrip.title}`,
+      iconName: 'Plane',
+      categoryColor: '#3B82F6',
+    });
+  };
+
+  const deleteTrip = async (id: string) => {
+    const targetTrip = trips.find((t) => t.id === id);
+    const tripTitleStr = targetTrip ? targetTrip.title.toLowerCase() : '';
+
+    // 1. Delete trip from trip service & state
+    await tripService.deleteTrip(id, userId);
+    setTrips((prev) => prev.filter((t) => t.id !== id));
+
+    // 2. Cascade delete corresponding travel goal and deposit expenses if present
+    if (tripTitleStr) {
+      const matchingGoal = goals.find(
+        (g) => g.title.toLowerCase().includes(tripTitleStr) || tripTitleStr.includes(g.title.toLowerCase())
+      );
+      if (matchingGoal) {
+        await deleteGoal(matchingGoal.id);
+      }
+
+      const expensesToDelete = expenses.filter((e) => {
+        const titleLower = (e.title || '').toLowerCase();
+        const notesLower = (e.notes || '').toLowerCase();
+        return (
+          titleLower.includes(`trip savings deposit: ${tripTitleStr}`) ||
+          notesLower.includes(`for ${tripTitleStr}`)
+        );
+      });
+
+      for (const exp of expensesToDelete) {
+        await deleteExpense(exp.id);
+      }
+    }
   };
 
   const addTripExpense = async (
@@ -361,6 +449,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleSubscriptionStatus,
         deleteSubscription,
         addTrip,
+        depositToTrip,
+        deleteTrip,
         addTripExpense,
         addFriend,
         recordSettlement,

@@ -1,5 +1,5 @@
 import { db } from '../config/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import type { Trip } from '../types/featurePages';
 import { apiFetch } from './apiClient';
 
@@ -38,6 +38,7 @@ export const tripService = {
       ...tripData,
       id: `trip-${Date.now()}`,
       totalSpent: 0,
+      savedAmount: tripData.savedAmount ?? 0,
       expensesList: [],
     };
 
@@ -60,6 +61,49 @@ export const tripService = {
     }
 
     return newTrip;
+  },
+
+  async depositToTrip(tripId: string, amount: number, currentSaved: number = 0, userId?: string): Promise<number> {
+    const newSavedAmount = currentSaved + amount;
+
+    if (db && userId && userId !== 'guest_user_demo') {
+      try {
+        await updateDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, tripId), {
+          savedAmount: newSavedAmount,
+        });
+      } catch (err) {
+        console.warn('Firestore depositToTrip error:', err);
+      }
+    }
+
+    try {
+      await apiFetch(`/trips/${tripId}/deposit`, {
+        method: 'POST',
+        body: JSON.stringify({ amount, savedAmount: newSavedAmount }),
+      }, userId);
+    } catch (err) {
+      console.warn('REST API depositToTrip error:', err);
+    }
+
+    return newSavedAmount;
+  },
+
+  async deleteTrip(tripId: string, userId?: string): Promise<void> {
+    if (db && userId && userId !== 'guest_user_demo') {
+      try {
+        await deleteDoc(doc(db, `users/${userId}/${COLLECTION_NAME}`, tripId));
+      } catch (err) {
+        console.warn('Firestore deleteTrip error:', err);
+      }
+    }
+
+    try {
+      await apiFetch(`/trips/${tripId}`, {
+        method: 'DELETE',
+      }, userId);
+    } catch (err) {
+      console.warn('REST API deleteTrip error:', err);
+    }
   },
 
   async addTripExpense(

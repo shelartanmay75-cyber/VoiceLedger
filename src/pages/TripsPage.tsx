@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plane, Plus, MapPin, Calendar, Users, Receipt, Wallet, Compass, X, IndianRupee } from 'lucide-react';
+import { Plane, Plus, MapPin, Calendar, Receipt, Wallet, Compass, X, IndianRupee, Trash2 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,9 +8,13 @@ import { Input } from '../components/ui/Input';
 import { useData } from '../context/DataContext';
 
 export const TripsPage: React.FC = () => {
-  const { trips, addTrip, addTripExpense } = useData();
+  const { trips, addTrip, depositToTrip, deleteTrip, addTripExpense } = useData();
   const [isAddTripModalOpen, setIsAddTripModalOpen] = useState(false);
   const [activeTripForExpense, setActiveTripForExpense] = useState<string | null>(null);
+
+  // Deposit funds state
+  const [depositTripId, setDepositTripId] = useState<string | null>(null);
+  const [depositAmount, setDepositAmount] = useState('');
 
   // New Trip state
   const [tripTitle, setTripTitle] = useState('');
@@ -28,6 +32,7 @@ export const TripsPage: React.FC = () => {
   const [paidBy, setPaidBy] = useState('You');
 
   const totalTravelSpent = trips.reduce((acc, t) => acc + (t.totalSpent || 0), 0);
+  const totalTravelSaved = trips.reduce((acc, t) => acc + (t.savedAmount || 0), 0);
 
   const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +44,7 @@ export const TripsPage: React.FC = () => {
       startDate,
       endDate,
       totalBudget: parseFloat(tripBudget),
+      savedAmount: 0,
       status: 'active',
       travelersCount: 4,
       coverGradient: 'from-[#06B6D4] to-[#3B82F6]',
@@ -47,6 +53,21 @@ export const TripsPage: React.FC = () => {
     setTripTitle('');
     setTripBudget('');
     setIsAddTripModalOpen(false);
+  };
+
+  const handleDepositToTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!depositTripId || !depositAmount) return;
+
+    await depositToTrip(depositTripId, parseFloat(depositAmount));
+    setDepositTripId(null);
+    setDepositAmount('');
+  };
+
+  const handleDeleteTrip = async (tripId: string, title: string) => {
+    if (window.confirm(`Are you sure you want to delete the trip "${title}"?`)) {
+      await deleteTrip(tripId);
+    }
   };
 
   const handleAddExpenseToTrip = async (e: React.FormEvent) => {
@@ -101,9 +122,9 @@ export const TripsPage: React.FC = () => {
                 <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Total Travel Spend</span>
+                <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Total Travel Funds Saved</span>
                 <p className="text-2xl font-extrabold text-slate-900 dark:text-[#F3F4F6] mt-0.5">
-                  ₹{totalTravelSpent.toLocaleString('en-IN')}
+                  ₹{totalTravelSaved.toLocaleString('en-IN')}
                 </p>
               </div>
             </div>
@@ -112,12 +133,12 @@ export const TripsPage: React.FC = () => {
           <Card hoverable className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/30">
-                <Users className="w-6 h-6" />
+                <Receipt className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Active Travelers</span>
+                <span className="text-xs text-slate-500 dark:text-[#9CA3AF]">Total Travel Spend</span>
                 <p className="text-2xl font-extrabold text-slate-900 dark:text-[#F3F4F6] mt-0.5">
-                  Group Sync
+                  ₹{totalTravelSpent.toLocaleString('en-IN')}
                 </p>
               </div>
             </div>
@@ -129,6 +150,7 @@ export const TripsPage: React.FC = () => {
         {/* ------------------------------------------------------------- */}
         <div className="space-y-6">
           {trips.map((trip) => {
+            const savedPct = Math.min(100, Math.round(((trip.savedAmount || 0) / (trip.totalBudget || 1)) * 100));
             const spentPct = Math.min(100, Math.round(((trip.totalSpent || 0) / (trip.totalBudget || 1)) * 100));
 
             return (
@@ -154,7 +176,16 @@ export const TripsPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setDepositTripId(trip.id)}
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
+                      className="bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                    >
+                      + Add Funds / Deposit
+                    </Button>
                     <Button
                       variant="secondary"
                       size="sm"
@@ -162,15 +193,41 @@ export const TripsPage: React.FC = () => {
                     >
                       + Add Trip Expense
                     </Button>
+                    <button
+                      onClick={() => handleDeleteTrip(trip.id, trip.title)}
+                      className="p-2 rounded-xl bg-white/10 hover:bg-red-500/80 text-white transition-colors border border-white/20 shrink-0"
+                      title="Delete Trip"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/20 text-right shrink-0">
-                      <span className="text-xs opacity-80 block">Trip Budget</span>
+                      <span className="text-xs opacity-80 block">Trip Budget Target</span>
                       <span className="text-xl font-extrabold">
-                        ₹{(trip.totalSpent || 0).toLocaleString('en-IN')}
+                        ₹{(trip.totalBudget || 0).toLocaleString('en-IN')}
                       </span>
-                      <span className="text-xs opacity-80 block">
-                        of ₹{(trip.totalBudget || 0).toLocaleString('en-IN')} ({spentPct}%)
+                      <span className="text-xs opacity-90 block font-semibold text-emerald-200">
+                        Saved: ₹{(trip.savedAmount || 0).toLocaleString('en-IN')} ({savedPct}%)
                       </span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Savings & Budget Progress Bar Banner */}
+                <div className="px-6 py-3 bg-slate-100/70 dark:bg-[#0B0F14]/70 border-b border-slate-200 dark:border-[#222934] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="text-slate-600 dark:text-[#9CA3AF]">Allocated Vacation Funds Saved</span>
+                      <span className="text-[#3B82F6] font-bold">₹{(trip.savedAmount || 0).toLocaleString('en-IN')} of ₹{(trip.totalBudget || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-200 dark:bg-[#151A21] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#22C55E] to-[#3B82F6] rounded-full"
+                        style={{ width: `${savedPct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-xs font-semibold text-slate-500 dark:text-[#9CA3AF]">
+                    Spent: <span className="font-extrabold text-slate-900 dark:text-[#F3F4F6]">₹{(trip.totalSpent || 0).toLocaleString('en-IN')}</span> ({spentPct}%)
                   </div>
                 </div>
 
@@ -322,6 +379,31 @@ export const TripsPage: React.FC = () => {
                 <div className="pt-3 flex justify-end gap-2">
                   <Button type="button" variant="ghost" onClick={() => setActiveTripForExpense(null)}>Cancel</Button>
                   <Button type="submit" variant="primary">Add Expense</Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DEPOSIT FUNDS MODAL */}
+      <AnimatePresence>
+        {depositTripId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDepositTripId(null)} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative z-10 w-full max-w-md bg-white dark:bg-[#151A21] border border-slate-200 dark:border-[#222934] rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#222934]">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-[#F3F4F6]">Deposit Trip Funds</h3>
+                <button onClick={() => setDepositTripId(null)} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-[#9CA3AF]">
+                Deposited funds will be allocated to this trip/vacation target and automatically deducted from your monthly budget.
+              </p>
+              <form onSubmit={handleDepositToTrip} className="space-y-4">
+                <Input label="Deposit Amount (₹)" type="number" placeholder="5000" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} leftIcon={<IndianRupee className="w-4 h-4" />} required />
+                <div className="pt-3 flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setDepositTripId(null)}>Cancel</Button>
+                  <Button type="submit" variant="primary">Confirm Deposit & Deduct Budget</Button>
                 </div>
               </form>
             </motion.div>

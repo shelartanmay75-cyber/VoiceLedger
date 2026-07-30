@@ -42,6 +42,7 @@ export interface Trip {
   endDate: string;
   totalBudget: number;
   totalSpent: number;
+  savedAmount?: number;
   status: 'active' | 'upcoming' | 'completed';
   travelersCount: number;
   coverGradient: string;
