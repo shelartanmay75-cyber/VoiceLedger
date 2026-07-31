@@ -182,7 +182,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (cached !== null) {
           try { return JSON.parse(cached); } catch (_) {}
         }
-        if (fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0) return fetchedData;
+        if (fetchedData && Array.isArray(fetchedData)) return fetchedData;
         return isGuest ? mockFallback : [];
       };
 

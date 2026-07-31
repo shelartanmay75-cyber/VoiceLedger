@@ -52,7 +52,7 @@ export const SettingsPage: React.FC = () => {
   const handleConfirmResetAll = async () => {
     await resetAllLedgerData();
     setIsResetConfirmOpen(false);
-    setIsBudgetModalOpen(true);
+    navigate('/');
   };
 
   return (

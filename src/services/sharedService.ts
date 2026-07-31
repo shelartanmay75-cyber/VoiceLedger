@@ -20,24 +20,22 @@ export const sharedService = {
       }
     } catch (_) {}
 
-    let friends: SharedFriend[] = mockSharedFriends;
-    let settlements: SharedSettlement[] = mockSettlements;
+    let friends: SharedFriend[] = (!userId || userId === 'guest_user_demo') ? mockSharedFriends : [];
+    let settlements: SharedSettlement[] = (!userId || userId === 'guest_user_demo') ? mockSettlements : [];
 
     if (db && userId && userId !== 'guest_user_demo') {
       try {
         const friendsSnap = await getDocs(collection(db, `users/${userId}/friends`));
         const settlementsSnap = await getDocs(collection(db, `users/${userId}/settlements`));
 
-        if (!friendsSnap.empty || !settlementsSnap.empty) {
-          friends = friendsSnap.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<SharedFriend, 'id'>),
-          }));
-          settlements = settlementsSnap.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<SharedSettlement, 'id'>),
-          }));
-        }
+        friends = friendsSnap.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<SharedFriend, 'id'>),
+        }));
+        settlements = settlementsSnap.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<SharedSettlement, 'id'>),
+        }));
       } catch (err) {
         console.warn('Firestore fetchSharedData notice:', err);
       }
@@ -74,7 +72,7 @@ export const sharedService = {
     const friendsKey = `voiceledger_friends_${userId || 'guest'}`;
     try {
       const cached = localStorage.getItem(friendsKey);
-      const list: SharedFriend[] = cached ? JSON.parse(cached) : [...mockSharedFriends];
+      const list: SharedFriend[] = cached ? JSON.parse(cached) : ((!userId || userId === 'guest_user_demo') ? [...mockSharedFriends] : []);
       const updated = [newFriend, ...list];
       localStorage.setItem(friendsKey, JSON.stringify(updated));
     } catch (_) {}
@@ -121,7 +119,7 @@ export const sharedService = {
 
     try {
       const cachedSettlements = localStorage.getItem(settlementsKey);
-      const list: SharedSettlement[] = cachedSettlements ? JSON.parse(cachedSettlements) : [...mockSettlements];
+      const list: SharedSettlement[] = cachedSettlements ? JSON.parse(cachedSettlements) : ((!userId || userId === 'guest_user_demo') ? [...mockSettlements] : []);
       localStorage.setItem(settlementsKey, JSON.stringify([settlement, ...list]));
 
       const cachedFriends = localStorage.getItem(friendsKey);

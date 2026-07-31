@@ -51,7 +51,7 @@ export const ProfilePage: React.FC = () => {
   const handleConfirmResetAll = async () => {
     await resetAllLedgerData();
     setIsResetConfirmOpen(false);
-    setIsBudgetModalOpen(true);
+    navigate('/');
   };
 
   const handleLogout = async () => {
